@@ -67,11 +67,9 @@ from typing import (
 
 C = TypeVar("C", bound=Callable)
 
-
 @overload
 def foo(fn: C) -> C:
     ...
-
 
 @overload
 def foo(
@@ -79,7 +77,6 @@ def foo(
     a: Optional[str] = "xyz",
 ) -> Callable[[C], C]:
     ...
-
 
 def foo(
     fn: Optional[C] = None,

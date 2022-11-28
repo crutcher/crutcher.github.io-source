@@ -1,6 +1,10 @@
 scheme: Gemini
 darkmode: true
 
+github_banner:
+  enable: true
+  permalink: https://github.com/crutcher
+
 menu:
     home: / || fa fa-home
     archives: /archives/ || fa fa-archive
