@@ -30,6 +30,13 @@ code_dir: downloads/code
 i18n_dir: :lang
 skip_render:
 
+marked:
+  breaks: false
+
+markdown:
+  render:
+    breaks: false
+
 # Writing
 new_post_name: blog/:year/:month/:title.md # File name of new posts
 default_layout: post
