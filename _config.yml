@@ -5,7 +5,7 @@
 # Site
 title: SomeTitle
 subtitle: ''
-description: ''
+description: 'hacking around Big Math'
 keywords:
 author: Crutcher Dunnavant
 language: en
@@ -97,7 +97,8 @@ ignore:
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
-theme: landscape
+# theme: landscape
+theme: next
 
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment
