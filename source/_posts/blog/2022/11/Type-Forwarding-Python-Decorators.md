@@ -8,7 +8,7 @@ Suppose you wish to define a proper type-forwarding decorator in python, which
 supports both the common default call pattern; and the argument override call
 pattern:
 
-``` python
+```python
 @foo
 def some_method(x: int) -> float:
     ...
@@ -20,7 +20,7 @@ def some_other_method(x: int) -> float:
 
 The mechanics of this at call time are relatively straightforward in python:
 
-``` python
+```python
 def foo(
     fn = None,
     *,
@@ -47,7 +47,7 @@ def some_other_method(x: int) -> float:
 
 We can ask `mypy` the type of the resultant decorated method:
 
-``` sh
+```sh
 $ mypy -c 'import simple; reveal_type(simple.some_method)'
 <string>:1: note: Revealed type is "Any"
 ```
@@ -56,7 +56,7 @@ But establishing appropriate types, such that the types of the decorated method
 are well-formed, is a challenge which requires use of `TypeVar` and the
 `@overload` mechanic, and a fair amount of boilerplate:
 
-``` python
+```python
 from typing import (
     Callable,
     Optional,
@@ -101,7 +101,7 @@ def foo_example(x: int, *, y: int) -> float:
 
 We can ask `mypy` the type of the decorated value:
 
-``` sh
+```sh
 $ mypy -c 'import example; reveal_type(example.foo_example)'
 <string>:1: note: Revealed type is "def (x: builtins.int, *, y: builtins.int) -> builtins.float"
 ```
@@ -109,7 +109,7 @@ $ mypy -c 'import example; reveal_type(example.foo_example)'
 Of note is that most of the actual core of this is very simple, suppose we
 could say the following:
 
-``` python
+```python
 @typed_decorator
 def foo(fn: C, *, a: str = "xyz") -> C:
     setattr(fn, '__foo__', a)
