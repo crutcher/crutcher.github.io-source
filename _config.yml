@@ -101,6 +101,12 @@ include:
 exclude:
 ignore:
 
+
+# https://github.com/next-theme/hexo-filter-mathjax
+mathjax:
+  tags: all
+
+
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/

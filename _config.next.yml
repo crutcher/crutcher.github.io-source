@@ -15,3 +15,11 @@ favicon:
   apple_touch_icon: /images/amp32.png
   safari_pinned_tab: /images/amp32.png
 
+codeblock:
+  theme:
+    light: default
+    dark: stackoverflow-dark
+
+  prism:
+    light: prism
+    dark: prism-dark
