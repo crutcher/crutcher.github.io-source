@@ -1,8 +1,7 @@
 ---
 title: Sharding Tensor Expressions
 date: 2022-12-12 14:11:00
-tags:
-  - tensor expressions
+tags: ["tensor expressions"]
 mathjax: true
 ---
 
