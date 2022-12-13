@@ -39,7 +39,7 @@ requirements we'd like to satisfy in evaluation.
 Consider a tensor expression in a toy language, call it $Expr$:
 
 ```
-X, W, b, Z, T: Tensor
+X, W, b, Z: Tensor
 Z = Linear(X, W, b)
 Y = ReLU(Z)
 ```
