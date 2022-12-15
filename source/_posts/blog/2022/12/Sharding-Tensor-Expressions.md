@@ -329,3 +329,7 @@ and I've done a fair amount of background work on large transform environments.
     - a slideshow of previous work we did on large-scale tensor expression environments.
   * [MLIR Polyhedral Types](https://mlir.llvm.org/docs/Dialects/Affine/)
     - the current LLVM work on polyhedral types for MLIR.
+
+
+Continue reading:
+  * See Part 2: [Index Projection Functions](http://localhost:4000/2022/12/13/Index-Projection-Functions/)
