@@ -2,6 +2,7 @@
 title: Starting a Blog
 date: 2022-11-15 10:11:20
 tags:
+comments: true
 ---
 
 My name is Crutcher Dunnavant, and I've been working in the big-comptuers

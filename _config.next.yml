@@ -20,11 +20,6 @@ favicon:
   apple_touch_icon: /images/amp32.png
   safari_pinned_tab: /images/amp32.png
 
-disquis:
-  enable: true
-  shortname: crutcher-github-io.disqus.com
-  count: true
-
 codeblock:
   theme:
     light: default
@@ -33,3 +28,18 @@ codeblock:
   prism:
     light: prism
     dark: prism-dark
+
+disqus:
+  enable: true
+  shortname: crutcher-github-io
+  count: true
+
+comments:
+  style: buttons
+  active: disqus
+  storage: true
+  layzload: false
+  nav:
+    disqus:
+      text: Load Disqus
+      order: -1
