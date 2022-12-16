@@ -2,10 +2,14 @@
 ## Docs: https://hexo.io/docs/configuration.html
 ## Source: https://github.com/hexojs/hexo/
 
+server:
+  # more accurate server renders, slower
+  cache: false
+
 # Site
 title: crutcher.github.io
 subtitle: ''
-description: 'hacking around Big Math'
+description: 'hacking around big math'
 keywords:
 author: Crutcher Dunnavant
 language: en

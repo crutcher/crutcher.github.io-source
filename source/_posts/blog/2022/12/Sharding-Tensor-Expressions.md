@@ -5,6 +5,13 @@ tags: ["tensor expressions"]
 mathjax: true
 ---
 
+### Series
+
+This post develops part of this document:
+    * [Tapestry: Shardable Tensor Expression Languages](/Tapestry)
+
+# The Distributed Tensor Expression Problem
+
 The distributed tensor expression "problem":
 * Given a tensor expression ( $Y = f(A, B); Z = g(X, Y)$ ), where the tensors may be
   arbitrarily large, how do we efficiently schedule the expression over large numbers of GPUs?

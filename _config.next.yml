@@ -13,6 +13,7 @@ menu:
     home: / || fa fa-home
     archives: /archives/ || fa fa-archive
     tags: /tags/ || fa fa-tags
+    Tapestry: /Tapestry/
 
 favicon:
   small: /images/amp16.png
