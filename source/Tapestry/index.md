@@ -121,25 +121,32 @@ we can show that the operation can be cleanly sharded along any batch dimensions
 
 $$\begin{eqnarray\*}
 \left\\{ \begin{split}
-Z &= Linear(X, W, b) \\\\
-Y &= ReLU(Z)
+    Z &= Linear(X, W, b) \\\\
+    Y &= ReLU(Z)
 \end{split} \right\\}
-\quad &\leftrightarrow& \quad
+%
+& \rightarrow_{shard(X)} &
+%
 \left\\{ \begin{split}
-Z &= \left( \begin{split}
-Linear(X[..k , ...], W, b) \\\\
-Linear(X[k.. , ...], W, b)
-\end{split} \right) \\\\
-Y &= ReLU(Z)
+    Z &= \left( \begin{split}
+        Linear(X[..k , ...], W, b) \\\\
+        Linear(X[k.. , ...], W, b)
+    \end{split} \right) \\\\
+    Y &= ReLU(Z)
 \end{split} \right\\} \\\\ \\\\
-&\leftrightarrow& \quad
+%
+&\rightarrow_{shard(Z)}& \quad
+%
 \left\\{ \begin{split}
-X_1 &= X[.. k, ...] \\\\
-X_2 &= X[k .., ...] \\\\
-Z_1 &= Linear(X_1, W, b) \\\\
-Z_2 &= Linear(X_2, W, b) \\\\
-Z &= \left( \begin{split} Z_1 \\\\ Z_2 \end{split} \right) \\\\
-Y &= ReLU(Z)
+    X_1 &= X[.. k, ...] \\\\
+    X_2 &= X[k .., ...] \\\\
+    Z_1 &= Linear(X_1, W, b) \\\\
+    Z_2 &= Linear(X_2, W, b) \\\\
+    Z &= \left( \begin{split}
+        Z_1 \\\\
+        Z_2
+    \end{split} \right) \\\\
+    Y &= ReLU(Z)
 \end{split} \right\\} \\\\ \\\\
 \end{eqnarray\*}$$
 
@@ -188,33 +195,40 @@ We know that we can also re-write $ReLU$ expressions upon the batch dimensions:
 
 $$\begin{eqnarray\*}
 \left\\{ \begin{split}
-X_1 &= X[.. k, ...] \\\\
-X_2 &= X[k .., ...] \\\\
-Z_1 &= Linear(X_1, W, b) \\\\
-Z_2 &= Linear(X_2, W, b) \\\\
-Z &= \left( \begin{split} Z_1 \\\\ Z_2 \end{split} \right) \\\\
-Y &= ReLU(Z)
+    X_1 &= X[.. k, ...] \\\\
+    X_2 &= X[k .., ...] \\\\
+    Z_1 &= Linear(X_1, W, b) \\\\
+    Z_2 &= Linear(X_2, W, b) \\\\
+    Z &= \left( \begin{split} Z_1 \\\\ Z_2 \end{split} \right) \\\\
+    Y &= ReLU(Z)
 \end{split} \right\\}
-\quad &\leftrightarrow& \quad
+%
+& \rightarrow_{forward(Z)} &
+%
 \left\\{ \begin{split}
-X_1 &= X[.. k, ...] \\\\
-X_2 &= X[k .., ...] \\\\
-Z_1 &= Linear(X_1, W, b) \\\\
-Z_2 &= Linear(X_2, W, b) \\\\
-Y &= \left( \begin{split}
-ReLU(Z_1) \\\\
-ReLU(Z_2)
-\end{split} \right)
+    X_1 &= X[.. k, ...] \\\\
+    X_2 &= X[k .., ...] \\\\
+    Z_1 &= Linear(X_1, W, b) \\\\
+    Z_2 &= Linear(X_2, W, b) \\\\
+    Y &= \left( \begin{split}
+        ReLU(Z_1) \\\\
+        ReLU(Z_2)
+    \end{split} \right)
 \end{split} \right\\} \\\\ \\\\
-&\leftrightarrow& \quad
+%
+& \rightarrow_{shard(Y)} &
+%
 \left\\{ \begin{split}
-X_1 &= X[.. k, ...] \\\\
-X_2 &= X[k .., ...] \\\\
-Z_1 &= Linear(X_1, W, b) \\\\
-Z_2 &= Linear(X_2, W, b) \\\\
-Y_1 &= ReLU(Z_1) \\\\
-Y_2 &= ReLU(Z_2) \\\\
-Y &= \left( \begin{split} Y_1 \\\\ Y_2 \end{split} \right) \\\\
+    X_1 &= X[.. k, ...] \\\\
+    X_2 &= X[k .., ...] \\\\
+    Z_1 &= Linear(X_1, W, b) \\\\
+    Z_2 &= Linear(X_2, W, b) \\\\
+    Y_1 &= ReLU(Z_1) \\\\
+    Y_2 &= ReLU(Z_2) \\\\
+    Y &= \left( \begin{split}
+        Y_1 \\\\
+        Y_2
+    \end{split} \right) \\\\
 \end{split} \right\\}
 \end{eqnarray\*}$$
 
@@ -264,38 +278,42 @@ into the combined $Linear \Rightarrow ReLU$ operation, and collapse the shards:
 
 $$\begin{eqnarray\*}
 \left\\{ \begin{split}
-X_1 &= X[.. k, ...] \\\\
-X_2 &= X[k .., ...] \\\\
-Z_1 &= Linear(X_1, W, b) \\\\
-Z_2 &= Linear(X_2, W, b) \\\\
-Y_1 &= ReLU(Z_1) \\\\
-Y_2 &= ReLU(Z_2) \\\\
-Y &= \left( \begin{split}
-Y_1 \\\\
-Y_2
-\end{split} \right)
+    X_1 &= X[.. k, ...] \\\\
+    X_2 &= X[k .., ...] \\\\
+    Z_1 &= Linear(X_1, W, b) \\\\
+    Z_2 &= Linear(X_2, W, b) \\\\
+    Y_1 &= ReLU(Z_1) \\\\
+    Y_2 &= ReLU(Z_2) \\\\
+    Y &= \left( \begin{split}
+        Y_1 \\\\
+        Y_2
+    \end{split} \right)
 \end{split} \right\\}
-\quad &\leftrightarrow& \quad
+%
+& \rightarrow_{compose(Linear, ReLU)} &
+%
 \left\\{ \begin{split}
-X_1 &= X[.. k, ...] \\\\
-X_2 &= X[k .., ...] \\\\
-Y_1 &= ReLU(Linear(X_1, W, B)) \\\\
-Y_2 &= ReLU(Linear(X_2, W, B)) \\\\
-Y &= \left( \begin{split}
-Y_1 \\\\
-Y_2
-\end{split} \right)
+    X_1 &= X[.. k, ...] \\\\
+    X_2 &= X[k .., ...] \\\\
+    Y_1 &= ReLU(Linear(X_1, W, B)) \\\\
+    Y_2 &= ReLU(Linear(X_2, W, B)) \\\\
+    Y &= \left( \begin{split}
+        Y_1 \\\\
+        Y_2
+    \end{split} \right)
 \end{split} \right\\} \\\\ \\\\
-&\leftrightarrow& \quad
+%
+& \rightarrow_{fuse(Linear, ReLU)} &
+%
 \left\\{ \begin{split}
-X_1 &= X[.. k, ...] \\\\
-X_2 &= X[k .., ...] \\\\
-Y_1 &= (Linear \Rightarrow ReLU)(X_1, W, b) \\\\
-Y_2 &= (Linear \Rightarrow ReLU)(X_2, W, b) \\\\
-Y &= \left( \begin{split}
-Y_1 \\\\
-Y_2
-\end{split} \right)
+    X_1 &= X[.. k, ...] \\\\
+    X_2 &= X[k .., ...] \\\\
+    Y_1 &= (Linear \Rightarrow ReLU)(X_1, W, b) \\\\
+    Y_2 &= (Linear \Rightarrow ReLU)(X_2, W, b) \\\\
+    Y &= \left( \begin{split}
+        Y_1 \\\\
+        Y_2
+    \end{split} \right)
 \end{split} \right\\} \\\\ \\\\
 \end{eqnarray\*}$$
 
