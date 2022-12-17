@@ -1,7 +1,7 @@
 ---
 title: Index Projection Functions
 date: 2022-12-13 08:10:20
-tags: ["tensor expressions"]
+tags: ["tensor expressions", "tapestry"]
 mathjax: true
 ---
 

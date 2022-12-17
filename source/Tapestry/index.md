@@ -1,6 +1,7 @@
 ---
 title: "Tapestry: Shardable Tensor Expression Languages"
 date: 2022-12-16 10:32:05
+tags: ["tensor expressions", "tapestry"]
 mathjax: true
 ---
 
