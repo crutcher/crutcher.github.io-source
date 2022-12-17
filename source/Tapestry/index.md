@@ -6,8 +6,8 @@ mathjax: true
 
 # Abstract
 
-This document represents my living attempt to describe work I'm doing in the research
-of the design and implementation of shardable tensor expression languages. It's going
+This document represents my living attempt to describe work I'm doing in research
+on the design and implementation of shardable tensor expression languages. It's going
 to take time to fill all the way in, and this is my roll-up single entry point document.
 
 ## References
@@ -24,9 +24,15 @@ and I've done a fair amount of background work on large transform environments.
 
 # The Distributed Tensor Expression Problem
 
-The distributed tensor expression "problem":
-* Given a tensor expression ( $Y = f(A, B); Z = g(X, Y)$ ), where the tensors may be
-  arbitrarily large, how do we efficiently schedule the expression over large numbers of GPUs?
+The tensor evaluation language problem:
+```
+A, B, X, Y: Tensor
+Y = f(A, B)
+Z = g(X, Y)
+```
+  * Given an arbitrarily large tensor-valued operator expression;
+    how do we efficiently schedule the expression over large numbers of GPUs?
+
 
 Much of the existing work in this space has focused upon scaling programs written
 in existing tensor expression languages (`pytorch`, `tensorflow`, `numpy`);
@@ -51,11 +57,24 @@ apis; I'm interested in the question of how far we can get?
 
 ## Expanding a Toy Example
 
-The process of designing new evaluation environments is the process of searching over spaces
-of functor embeddings to attempt to fit the formal semantics we desire to the operational
-requirements we'd like to satisfy in evaluation.
+Designing new evaluation languages requires that we work backwards from informal semantics
+(things *similar* to things we want to be able to say) and operational requirements
+(things we want to be true of resource usage: cpu, memory, networks, etc); and search
+for systems of formal semantics constructed from building blocks already known to math
+and computer science, which come closest to satisfying the design goals.
 
-Consider a tensor expression in a toy language, call it $Expr$:
+I like to cast much of this as searching for functor embeddings which a given set of
+properties, because if we can find a functor embedding into an abstract execution
+environment with semantics similar to the machine environments we wish to target;
+translation from the functor embedding to the actual machines tends to be straightforward.
+
+It is frequently the case that, in searching for good embeddings, we'll find a system
+of formal semantics which is *close* to the informal semantics we started out with as a
+goal. We could force alignment, or we could adjust our goals; and exploit the machinery
+provided by the formal semantic system we've found. I tend to prefer the later approach.
+
+Consider a tensor expression in a toy language, call it $Expr$; this particular expression
+is motivated by a fully connected neural network layer, but it could be anything:
 
 ```
 X, W, b, Z: Tensor
@@ -69,9 +88,8 @@ for formal semantics such that:
 
 If we were attempting to shard `python+numpy`, or `python+pytorch`, or any number of other
 existing problem spaces, we'd be forced to find an embedding which permitted hosting
-the entire semantic surface of those environments.
-
-But since we've decided to drop that requirement, we can *break* the semantics; since $Expr$
+the entire semantic surface of those environments. But since we've decided to drop that requirement,
+we can *break* the semantics; since $Expr$
 is only a sketch towards a language, we can explore restrictions to $Expr$ which simplify
 embedding.
 
@@ -102,27 +120,27 @@ By examining the implementation of $Linear$, and assuming that $X$ has shape $[b
 we can show that the operation can be cleanly sharded along any batch dimensions of the input $X$:
 
 $$\begin{eqnarray\*}
-\begin{split}
+\left\\{ \begin{split}
 Z &= Linear(X, W, b) \\\\
 Y &= ReLU(Z)
-\end{split}
+\end{split} \right\\}
 \quad &\leftrightarrow& \quad
-\begin{split}
+\left\\{ \begin{split}
 Z &= \left( \begin{split}
 Linear(X[..k , ...], W, b) \\\\
 Linear(X[k.. , ...], W, b)
 \end{split} \right) \\\\
 Y &= ReLU(Z)
-\end{split} \\\\ \\\\
+\end{split} \right\\} \\\\ \\\\
 &\leftrightarrow& \quad
-\begin{split}
+\left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
 Z_1 &= Linear(X_1, W, b) \\\\
 Z_2 &= Linear(X_2, W, b) \\\\
 Z &= \left( \begin{split} Z_1 \\\\ Z_2 \end{split} \right) \\\\
 Y &= ReLU(Z)
-\end{split} \\\\ \\\\
+\end{split} \right\\} \\\\ \\\\
 \end{eqnarray\*}$$
 
 
@@ -169,16 +187,16 @@ $$
 We know that we can also re-write $ReLU$ expressions upon the batch dimensions:
 
 $$\begin{eqnarray\*}
-\begin{split}
+\left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
 Z_1 &= Linear(X_1, W, b) \\\\
 Z_2 &= Linear(X_2, W, b) \\\\
 Z &= \left( \begin{split} Z_1 \\\\ Z_2 \end{split} \right) \\\\
 Y &= ReLU(Z)
-\end{split}
+\end{split} \right\\}
 \quad &\leftrightarrow& \quad
-\begin{split}
+\left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
 Z_1 &= Linear(X_1, W, b) \\\\
@@ -187,9 +205,9 @@ Y &= \left( \begin{split}
 ReLU(Z_1) \\\\
 ReLU(Z_2)
 \end{split} \right)
-\end{split} \\\\ \\\\
+\end{split} \right\\} \\\\ \\\\
 &\leftrightarrow& \quad
-\begin{split}
+\left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
 Z_1 &= Linear(X_1, W, b) \\\\
@@ -197,7 +215,7 @@ Z_2 &= Linear(X_2, W, b) \\\\
 Y_1 &= ReLU(Z_1) \\\\
 Y_2 &= ReLU(Z_2) \\\\
 Y &= \left( \begin{split} Y_1 \\\\ Y_2 \end{split} \right) \\\\
-\end{split}
+\end{split} \right\\}
 \end{eqnarray\*}$$
 
 
@@ -245,7 +263,7 @@ And finally, seeing $Z_1$ and $Z_2$ do not escape, we can fuse $Linear$ and $ReL
 into the combined $Linear \Rightarrow ReLU$ operation, and collapse the shards:
 
 $$\begin{eqnarray\*}
-\begin{split}
+\left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
 Z_1 &= Linear(X_1, W, b) \\\\
@@ -256,9 +274,9 @@ Y &= \left( \begin{split}
 Y_1 \\\\
 Y_2
 \end{split} \right)
-\end{split}
+\end{split} \right\\}
 \quad &\leftrightarrow& \quad
-\begin{split}
+\left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
 Y_1 &= ReLU(Linear(X_1, W, B)) \\\\
@@ -267,9 +285,9 @@ Y &= \left( \begin{split}
 Y_1 \\\\
 Y_2
 \end{split} \right)
-\end{split} \\\\
+\end{split} \right\\} \\\\ \\\\
 &\leftrightarrow& \quad
-\begin{split}
+\left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
 Y_1 &= (Linear \Rightarrow ReLU)(X_1, W, b) \\\\
@@ -278,7 +296,7 @@ Y &= \left( \begin{split}
 Y_1 \\\\
 Y_2
 \end{split} \right)
-\end{split} \\\\ \\\\
+\end{split} \right\\} \\\\ \\\\
 \end{eqnarray\*}$$
 
 
@@ -339,25 +357,13 @@ For any given $Operator$, we need additional information:
 
 But we also need to ensure that connective expression language between operators has the same properties.
 
-This is an active field of research for me; I believe that index projection functions are a viable solution to this,
-and I've done a fair amount of background work on large transform environments.
-
-* [Tapestry Tensor Expressions](https://github.com/crutcher/tapestry)
-    - my current toy environment.
-* [3Scan Crystal Pipeline](https://docs.google.com/presentation/d/1KGlawW9iZnI7xN-X-Q5y4h8aBqgu6bh4pA_0Siq321E/edit?usp=sharing)
-    - a slideshow of previous work we did on large-scale tensor expression environments.
-* [MLIR Polyhedral Types](https://mlir.llvm.org/docs/Dialects/Affine/)
-    - the current LLVM work on polyhedral types for MLIR.
-
-
-Suppose we've got a toy tensor expression language $Expr$:
+Recall the toy tensor expression in $Expr$:
 ```
 X, W, b, Z: Tensor
 Z = Linear(X, W, b)
 Y = ReLU(Z)
 ```
 
-And we're interested in mechanical sharding optimizations of the resultant expression graph:
 ```graphviz
 digraph D {
     rankdir=LR;
