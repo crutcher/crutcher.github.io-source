@@ -5,6 +5,165 @@ tags: ["tensor expressions", "tapestry"]
 mathjax: true
 ---
 
+### Series
+
+This post develops part of this document:
+   * [Tapestry: Shardable Tensor Expression Languages](/Tapestry)
+
+# Sharding $Linear$ over `in` and `out` dimensions
+
+In the previous post on [Index Projection Functions](/2022/12/Index-Projection-Functions/),
+we developed affine projections for the batch dimension of a tensor-valued $Linear$ operation,
+assuming dimensions: $X: [batch, in]$, $W: [in, out]$, $b: [out]$, $Y: [batch, out]$:
+
+$$
+Linear(X, W, b) := X \cdot W^T + b
+$$
+
+We'll now consider $P_W(i)$, and how we'll handle batching over `out`; and batching over `in`,
+which proves to be much more complex.
+
+```graphviz
+digraph G {
+    rankdir=LR;
+
+    idx [
+        shape="plain",
+        label=<
+	<table border="0">
+        <tr><td>
+          <table cellpadding="8">
+              <tr>
+                  <td>⋱</td>
+                  <td>…</td>
+                  <td>⋰</td>
+                  </tr>
+              <tr>
+                  <td>…</td>
+                  <td bgcolor="#D6EAF8" align="center">batch,in,out</td>
+                  <td>…</td>
+                  </tr>
+              <tr>
+                  <td>⋰</td>
+                  <td>…</td>
+                  <td>⋱</td>
+                  </tr>
+              </table>
+	  </td></tr>
+        <tr><td><i>index</i></td></tr>
+	  </table>
+        >,
+    ];
+
+    x [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>⋱</td>
+                <td>⋰</td>
+                </tr>
+            <tr>
+                <td bgcolor="#D6EAF8">X<sub>batch,in</sub></td>
+                <td bgcolor="#D6EAF8">…</td>
+                </tr>
+            <tr>
+                <td>⋰</td>
+                <td>⋱</td>
+                </tr>
+            </table>
+        >,
+    ];
+
+    w [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>⋱</td>
+                <td bgcolor="#D6EAF8">…</td>
+                <td>⋰</td>
+                </tr>
+            <tr>
+                <td>…</td>
+                <td bgcolor="#D6EAF8">W<sub>in,out</sub></td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>⋰</td>
+                <td bgcolor="#D6EAF8">…</td>
+                <td>⋱</td>
+                </tr>
+            </table>
+        >,
+    ];
+
+    op [
+        label=Linear,
+        shape=rarrow,
+        style=filled,
+        fillcolor="#E5E8E8",
+        margin=0.3
+    ];
+
+    b [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>…</td>
+                <td bgcolor="#D6EAF8">b<sub>out</sub></td>
+                <td>…</td>
+                </tr>
+            </table>
+        >,
+    ];
+
+    y [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>⋱</td>
+                <td>…</td>
+                <td>⋰</td>
+                </tr>
+            <tr>
+                <td>…</td>
+                <td bgcolor="#D6EAF8">y<sub>batch,out</sub></td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>⋰</td>
+                <td>…</td>
+                <td>⋱</td>
+                </tr>
+            </table>
+        >,
+    ];
+
+
+    x -> op;
+    op -> y;
+
+    w -> op;
+    b -> op;
+
+    idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+    idx -> w [label=<P<sub>W</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+    idx -> b [label=<P<sub>b</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+    idx -> y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+
+    { rank=same; op; idx; }
+}
+```
+
+# Sharding $Linear$ over the `out` dimension
+
+The values of $Linear$ in the `out` dimension are independent of each other;
+each `out` value is computed using one column of $W$ and one value in $b$;
+and as a result the op can be cleanly and trivially sharded by chunking $W$ and $b$:
+
 ```graphviz
 digraph G {
     rankdir=LR;
@@ -235,6 +394,8 @@ digraph G {
     yk -> y;
 }
 ```
+
+# Sharding $Linear$ over the `in` dimension
 
 ```graphviz
 digraph G {
