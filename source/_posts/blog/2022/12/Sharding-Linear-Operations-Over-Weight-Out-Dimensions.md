@@ -23,7 +23,8 @@ $$
 Linear(X, W, b) := X \cdot W + b
 $$
 
-We'll now consider $P_W(i)$, and how we'll handle batching over `out` dimensions:
+We'll now consider the projection functions $P_W(i)$, $P_b(i)$, and $P_Y(i)$;
+and how we'll handle batching over `out` dimensions:
 
 ```graphviz
 digraph G {
@@ -400,11 +401,11 @@ and $P_Y(i)$ $start$ coordinates in terms of the indexed $out$ coordinate, and t
 terms of the $W_{out}$ out dimension size.
 
 $$\begin{eqnarray\*}
-P_W(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{out}, 0], \\\\ shape &:& [W_{out}, 1] \end{split} \right\\} \\\\
+P_W(i) &=& ZRange \left\\{ \begin{split} start&:& [0, i_{out}], \\\\ shape &:& [W_{out}, 1] \end{split} \right\\} \\\\
 \\\\
 P_b(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{out}], \\\\ shape &:& [1] \end{split} \right\\} \\\\
 \\\\
-P_Y(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{out}, 0], \\\\ shape &:& [W_{out}, 1] \end{split} \right\\}
+P_Y(i) &=& ZRange \left\\{ \begin{split} start&:& [0, i_{out}], \\\\ shape &:& [W_{out}, 1] \end{split} \right\\}
 \end{eqnarray\*}$$
 
 ```graphviz
