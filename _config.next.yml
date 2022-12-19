@@ -11,6 +11,7 @@ github_banner:
 
 menu:
   home: / || fa fa-home
+  Atom: /atom.xml || fab fa-atom
   archives: /archives/ || fa fa-archive
   tags: /tags/ || fa fa-tags
   Tapestry: /Tapestry/
