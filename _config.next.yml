@@ -10,11 +10,11 @@ github_banner:
   permalink: https://github.com/crutcher
 
 menu:
-  home: / || fa fa-home
+  Home: / || fa fa-home
   Atom: /atom.xml || fab fa-atom
-  archives: /archives/ || fa fa-archive
-  tags: /tags/ || fa fa-tags
-  Tapestry: /Tapestry/
+  Archives: /archives/ || fa fa-archive
+  Tags: /tags/ || fa fa-tags
+  Tapestry: /Tapestry/ || fa fa-diagram-project
 
 social:
   GitHub: https://github.com/crutcher || fab fa-github
