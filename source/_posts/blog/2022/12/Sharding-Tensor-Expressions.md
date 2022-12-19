@@ -83,7 +83,7 @@ The operation is intended as a stand-in for the fully-connected linear layer ope
 neural networks:
 
 $$
-Linear(X, W, b) := X \cdot W^T + b
+Linear(X, W, b) := X \cdot W + b
 $$
 
 By examining the implementation of $Linear$, and assuming that $X$ has shape $[batch, in]$ ,

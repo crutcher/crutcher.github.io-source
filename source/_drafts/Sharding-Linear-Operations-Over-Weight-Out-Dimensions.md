@@ -1,5 +1,5 @@
 ---
-title: Sharding Linear Operations Over Weight Dimensions
+title: Sharding Linear Operations Over Weight Out Dimensions
 date: 2022-12-17 09:34:34
 tags: ["tensor expressions", "tapestry"]
 mathjax: true
@@ -10,18 +10,17 @@ mathjax: true
 This post develops part of this document:
    * [Tapestry: Shardable Tensor Expression Languages](/Tapestry)
 
-# Sharding $Linear$ over `in` and `out` dimensions
+# Sharding $Linear$ over the `out` dimension
 
 In the previous post on [Index Projection Functions](/2022/12/Index-Projection-Functions/),
 we developed affine projections for the batch dimension of a tensor-valued $Linear$ operation,
 assuming dimensions: $X: [batch, in]$, $W: [in, out]$, $b: [out]$, $Y: [batch, out]$:
 
 $$
-Linear(X, W, b) := X \cdot W^T + b
+Linear(X, W, b) := X \cdot W + b
 $$
 
-We'll now consider $P_W(i)$, and how we'll handle batching over `out`; and batching over `in`,
-which proves to be much more complex.
+We'll now consider $P_W(i)$, and how we'll handle batching over `out` dimensions:
 
 ```graphviz
 digraph G {
@@ -158,8 +157,6 @@ digraph G {
 }
 ```
 
-# Sharding $Linear$ over the `out` dimension
-
 The values of $Linear$ in the `out` dimension are independent of each other;
 each `out` value is computed using one column of $W$ and one value in $b$;
 and as a result the op can be cleanly and trivially sharded by chunking $W$ and $b$:
@@ -173,7 +170,7 @@ digraph G {
         label=<
         <table bgcolor="#D5F5E3" cellpadding="8">
             <tr>
-                <td>x<sub>i,m</sub></td>
+                <td>x<sub>batch,in</sub></td>
                 <td>…</td>
                 </tr>
             <tr>
@@ -189,7 +186,7 @@ digraph G {
         label=<
         <table bgcolor="#D5F5E3" cellpadding="8">
             <tr>
-                <td bgcolor="#D6EAF8">w<sub>m,n</sub></td>
+                <td bgcolor="#D6EAF8">w<sub>in,out</sub></td>
                 <td bgcolor="#EBDEF0">…</td>
                 </tr>
             <tr>
@@ -205,7 +202,7 @@ digraph G {
         label=<
         <table bgcolor="#D5F5E3" cellpadding="8">
             <tr>
-                <td bgcolor="#D6EAF8">b<sub>n</sub></td>
+                <td bgcolor="#D6EAF8">b<sub>out</sub></td>
                 <td bgcolor="#EBDEF0">…</td>
                 </tr>
             </table>
@@ -230,9 +227,9 @@ digraph G {
                 <td>…</td>
                 </tr>
             <tr>
-                <td>w<sub>i,0</sub></td>
+                <td>w<sub>in,0</sub></td>
                 <td>…</td>
-                <td>w<sub>i,k</sub></td>
+                <td>w<sub>in,k</sub></td>
                 </tr>
             </table>
         >,
@@ -274,9 +271,9 @@ digraph G {
                 <td>…</td>
                 </tr>
             <tr>
-                <td>y<sub>i,0</sub></td>
+                <td>y<sub>batch,0</sub></td>
                 <td>…</td>
-                <td>y<sub>i,k</sub></td>
+                <td>y<sub>batch,k</sub></td>
                 </tr>
             </table>
         >,
@@ -296,7 +293,7 @@ digraph G {
             <tr>
                 <td>w<sub>0,k+1</sub></td>
                 <td>…</td>
-                <td>w<sub>0,n</sub></td>
+                <td>w<sub>0,out</sub></td>
                 </tr>
             <tr>
                 <td>…</td>
@@ -304,9 +301,9 @@ digraph G {
                 <td>…</td>
                 </tr>
             <tr>
-                <td>w<sub>i,k+1</sub></td>
+                <td>w<sub>in,k+1</sub></td>
                 <td>…</td>
-                <td>w<sub>i,n</sub></td>
+                <td>w<sub>in,out</sub></td>
                 </tr>
             </table>
         >,
@@ -319,7 +316,7 @@ digraph G {
             <tr>
                 <td>b<sub>k+1</sub></td>
                 <td>…</td>
-                <td>b<sub>n</sub></td>
+                <td>b<sub>out</sub></td>
                 </tr>
             </table>
         >,
@@ -332,7 +329,7 @@ digraph G {
             <tr>
                 <td>y<sub>0,k+1</sub></td>
                 <td>…</td>
-                <td>y<sub>0,n</sub></td>
+                <td>y<sub>0,out</sub></td>
                 </tr>
             <tr>
                 <td>…</td>
@@ -340,9 +337,9 @@ digraph G {
                 <td>…</td>
                 </tr>
             <tr>
-                <td>y<sub>i,k+1</sub></td>
+                <td>y<sub>batch,k+1</sub></td>
                 <td>…</td>
-                <td>y<sub>i,n</sub></td>
+                <td>y<sub>batch,out</sub></td>
                 </tr>
             </table>
         >,
@@ -366,7 +363,7 @@ digraph G {
         label=<
         <table cellpadding="8">
             <tr>
-                <td bgcolor="#D6EAF8">y<sub>i,n</sub></td>
+                <td bgcolor="#D6EAF8">y<sub>batch,out</sub></td>
                 <td bgcolor="#EBDEF0">…</td>
                 </tr>
             <tr>
@@ -395,7 +392,317 @@ digraph G {
 }
 ```
 
+By extending the $index$ space to index the $out$ dimension, we can express the index functions $P_W(i)$, $P_b(i)$,
+and $P_Y(i)$ $start$ coordinates in terms of the indexed $out$ coordinate, and the shapes in
+terms of the $W_{out}$ out dimension size.
+
+$$\begin{eqnarray\*}
+P_W(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{out}, 0], \\\\ shape &:& [W_{out}, 1] \end{split} \right\\} \\\\
+\\\\
+P_b(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{out}], \\\\ shape &:& [1] \end{split} \right\\} \\\\
+\\\\
+P_Y(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{out}, 0], \\\\ shape &:& [W_{out}, 1] \end{split} \right\\}
+\end{eqnarray\*}$$
+
+```graphviz
+digraph G {
+    rankdir=LR;
+
+    idx [
+        shape="plain",
+        label=<
+	<table border="0">
+        <tr><td>
+          <table cellpadding="8">
+              <tr>
+                  <td>⋱</td>
+                  <td>…</td>
+                  <td>⋰</td>
+                  </tr>
+              <tr>
+                  <td>…</td>
+                  <td bgcolor="#D6EAF8" align="center">batch,in,out</td>
+                  <td>…</td>
+                  </tr>
+              <tr>
+                  <td>⋰</td>
+                  <td>…</td>
+                  <td>⋱</td>
+                  </tr>
+              </table>
+	  </td></tr>
+        <tr><td><i>index</i></td></tr>
+	  </table>
+        >,
+    ];
+
+    w [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>⋱</td>
+                <td port="a" bgcolor="#D6EAF8" border="3">P<sub>W</sub>(i)</td>
+                <td>⋰</td>
+                </tr>
+            <tr>
+                <td>…</td>
+                <td bgcolor="#D6EAF8" border="3">…</td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>⋰</td>
+                <td bgcolor="#D6EAF8" border="3">…</td>
+                <td>⋱</td>
+                </tr>
+            </table>
+        >,
+    ];
+    
+    b [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>…</td>
+                <td port="a" bgcolor="#D6EAF8" border="3">P<sub>b</sub>(i)</td>
+                <td>…</td>
+                </tr>
+            </table>
+        >,
+    ];
+
+    op [
+        label=Linear,
+        shape=rarrow,
+        style=filled,
+        fillcolor="#E5E8E8",
+        margin=0.3
+    ];
+
+    y [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>⋱</td>
+                <td port="a" bgcolor="#D6EAF8" border="3">P<sub>Y</sub>(i)</td>
+                <td>⋰</td>
+                </tr>
+            <tr>
+                <td>…</td>
+                <td bgcolor="#D6EAF8" border="3">…</td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>⋰</td>
+                <td bgcolor="#D6EAF8" border="3">…</td>
+                <td>⋱</td>
+                </tr>
+            </table>
+        >,
+    ];
+    
+    w -> op;
+    b -> op;
+    op -> y;
+
+    idx -> w:a [
+        label=<P<sub>W</sub>(i)>,
+        constraint=false,
+        style=dotted,
+        arrowhead=empty
+    ];
+    
+    idx -> b:a [
+        label=<P<sub>b</sub>(i)>,
+        constraint=false,
+        style=dotted,
+        arrowhead=empty
+    ];
+    
+    idx -> y:a [
+        label=<P<sub>Y</sub>(i)>,
+        constraint=false,
+        style=dotted,
+        arrowhead=empty
+    ];
+
+    { rank=same; op; idx; }
+}
+```
+
+We also cleanly get the property that coherent ranges in the index space
+correspond to coherent tensor ranges in the mapped coordinate space:
+
+```graphviz
+digraph G {
+    rankdir=LR;
+
+    idx [
+        shape="plain",
+        label=<
+	<table border="0">
+        <tr><td>
+          <table cellpadding="8">
+              <tr>
+                  <td>⋱</td>
+                  <td>…</td>
+                  <td>⋰</td>
+                  </tr>
+              <tr>
+                  <td>…</td>
+                  <td bgcolor="#D6EAF8" align="center">batch,in,out</td>
+                  <td>…</td>
+                  </tr>
+              <tr>
+                  <td>⋰</td>
+                  <td>…</td>
+                  <td>⋱</td>
+                  </tr>
+              </table>
+	  </td></tr>
+        <tr><td><i>index</i></td></tr>
+	  </table>
+        >,
+    ];
+
+    w [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td port="a" bgcolor="#D6EAF8">P<sub>W</sub>({out: 0})</td>
+                <td bgcolor="#D6EAF8">…</td>
+                <td port="b" border="3">P<sub>W</sub>({out: k})</td>
+                <td border="3">…</td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td bgcolor="#D6EAF8">…</td>
+                <td bgcolor="#D6EAF8">…</td>
+                <td border="3">…</td>
+                <td border="3">…</td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td bgcolor="#D6EAF8">…</td>
+                <td bgcolor="#D6EAF8">…</td>
+                <td border="3">…</td>
+                <td border="3">…</td>
+                <td>…</td>
+                </tr>
+            </table>
+        >,
+    ];
+    
+    y [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td port="a" bgcolor="#D6EAF8">P<sub>Y</sub>({out: 0})</td>
+                <td bgcolor="#D6EAF8">…</td>
+                <td port="b" border="3">P<sub>Y</sub>({out: k})</td>
+                <td border="3">…</td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td bgcolor="#D6EAF8">…</td>
+                <td bgcolor="#D6EAF8">…</td>
+                <td border="3">…</td>
+                <td border="3">…</td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td bgcolor="#D6EAF8">…</td>
+                <td bgcolor="#D6EAF8">…</td>
+                <td border="3">…</td>
+                <td border="3">…</td>
+                <td>…</td>
+                </tr>
+            </table>
+        >,
+    ];
+    
+    b [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td port="a" bgcolor="#D6EAF8" border="3">P<sub>b</sub>({out: 0})</td>
+                <td bgcolor="#D6EAF8">…</td>
+                <td port="b" border="3">P<sub>b</sub>({out: k})</td>
+                <td border="3">...</td>
+                <td>…</td>
+                </tr>
+            </table>
+        >,
+    ];
+
+    op [
+        label=Linear,
+        shape=rarrow,
+        style=filled,
+        fillcolor="#E5E8E8",
+        margin=0.3
+    ];
+
+    w -> op;
+    b -> op;
+    op -> y;
+
+    idx -> w:a [
+        label=<P<sub>W</sub>({out: 0})>,
+        constraint=false,
+        style=dotted,
+        arrowhead=empty
+    ];
+    
+    idx -> w:b [
+        label=<P<sub>W</sub>({out: k})>,
+        constraint=false,
+        style=dotted,
+        arrowhead=empty
+    ];
+    
+    idx -> b:a [
+        label=<P<sub>b</sub>({out: 0})>,
+        constraint=false,
+        style=dotted,
+        arrowhead=empty
+    ];
+    
+    idx -> b:b [
+        label=<P<sub>b</sub>({out: k})>,
+        constraint=false,
+        style=dotted,
+        arrowhead=empty
+    ];
+    
+    idx -> y:a [
+        label=<P<sub>Y</sub>({out: 0})>,
+        constraint=false,
+        style=dotted,
+        arrowhead=empty
+    ];
+    
+    idx -> y:b [
+        label=<P<sub>Y</sub>({out: b})>,
+        constraint=false,
+        style=dotted,
+        arrowhead=empty
+    ];
+
+    { rank=same; op; idx; }
+}
+```
+
 # Sharding $Linear$ over the `in` dimension
+
+Sharding $Linear$ over the $W_{in}$ dimension is more complex, as it requires sharding a
+reduce operation; which breaks our current block model; as a preview for a future post,
+we can see that this can be rewritten as a $sum$ reduction:
 
 ```graphviz
 digraph G {
