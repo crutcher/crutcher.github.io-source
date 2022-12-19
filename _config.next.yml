@@ -6,14 +6,19 @@ google_analytics:
   only_pageview: false
 
 github_banner:
-  enable: true
+  enable: false
   permalink: https://github.com/crutcher
 
 menu:
-    home: / || fa fa-home
-    archives: /archives/ || fa fa-archive
-    tags: /tags/ || fa fa-tags
-    Tapestry: /Tapestry/
+  home: / || fa fa-home
+  archives: /archives/ || fa fa-archive
+  tags: /tags/ || fa fa-tags
+  Tapestry: /Tapestry/
+
+social:
+  GitHub: https://github.com/crutcher || fab fa-github
+  Mastodon: https://sigmoid.social/@crutcher || fab fa-mastodon
+  Discord: https://discordapp.com/users/361021789268344842 || fab fa-discord
 
 favicon:
   small: /images/amp16.png
