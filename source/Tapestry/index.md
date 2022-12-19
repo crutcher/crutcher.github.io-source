@@ -2163,7 +2163,7 @@ digraph G {
         label=<
         <table cellpadding="8">
             <tr>
-                <td port="a" bgcolor="#D6EAF8" border="3">P<sub>b</sub>({out: 0})</td>
+                <td port="a" bgcolor="#D6EAF8">P<sub>b</sub>({out: 0})</td>
                 <td bgcolor="#D6EAF8">…</td>
                 <td port="b" border="3">P<sub>b</sub>({out: k})</td>
                 <td border="3">...</td>
