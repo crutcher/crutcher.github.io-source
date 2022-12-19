@@ -1,9 +1,12 @@
 ---
 title: Sharding Linear Operations Over Weight Out Dimensions
-date: 2022-12-17 09:34:34
-tags: ["tensor expressions", "tapestry"]
+tags:
+  - tensor expressions
+  - tapestry
 mathjax: true
+date: 2022-12-17 09:34:34
 ---
+
 
 ### Series
 
