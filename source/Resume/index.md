@@ -214,7 +214,7 @@ product was in 5 McDonald’s stores. In the time I was there, I drove the follo
 
 ## 2016-2019: 3Scan, San Francisco, CA
 
-# Infrastructure Tech Lead
+### Infrastructure Tech Lead
 
 I Joined 3Scan to upgrade their development prototype to a modern distributed system. I created and trained up the
 infrastructure group, developing a high throughput petabyte scale storage and analysis system.
@@ -242,9 +242,9 @@ Major Focus Areas:
 
 Left Google to decompress after 10 years.
 
-# 2005 - 2015: Google, Mountain View, CA
+## 2005 - 2015: Google, Mountain View, CA
 
-## 2013-2015: Knowledge Graph Modeling, Anomaly Detection, And DeDuping
+### 2013-2015: Knowledge Graph Modeling, Anomaly Detection, And DeDuping
 
 *Keywords: big data, deep learning, distributed optimization, C++*
 
@@ -311,13 +311,13 @@ and infrastructure tools throughout my time at Google. Callback libraries, bug d
 libraries for our cluster configuration language, time series alignment and graphing utilities, several internal code
 labs, GWT history management libraries. I also dove into some big API changes, refactoring 10000s of call sites.
 
-# 2001-2005: Finish College, Grad School
+## 2001-2005: Finish College, Grad School
 
 Ran the AIX and Linux network for the College of Engineering.
 
-# 2000 - 2001: Red Hat, Research Triangle, NC
+## 2000 - 2001: Red Hat, Research Triangle, NC
 
-## Linux OS Developer
+### Linux OS Developer
 
 *Keywords: Python, C, Linux Kernel, Postscript, RPM*
 Worked on Red Hat’s Linux OS, as an OS Developer. Was responsible for the printing system, binding many third party
@@ -349,7 +349,7 @@ Many years setting up, running, tearing down stages and tech for a 40k person Sc
 
 MIG welding, sewing, carpentry, basic plumbing, basic electrical, rigging
 
-## Education
+# Education
 
 * B.S. Computer Science, University of Alabama, 2002
 * M.S. Computer Science, University of Alabama, 2004
