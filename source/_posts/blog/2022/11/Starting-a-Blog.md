@@ -4,7 +4,7 @@ date: 2022-11-15 10:11:20
 tags:
 ---
 
-My name is Crutcher Dunnavant, and I've been working in the big-comptuers
+My name is Crutcher Dunnavant, and I've been working in the big-computers
 industry for some time.
 
 Though I've used and worked with Open Source software for most of my
