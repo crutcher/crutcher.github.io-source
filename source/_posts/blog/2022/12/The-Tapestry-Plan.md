@@ -25,7 +25,7 @@ just the careful and methodical application of pieces from a number of sub-field
 As there are many projects exploring how to take existing evaluation environments
 and back-fit sharding machinery too them, and as those projects are continuing to
 make reasonable progress, I feel that there's no short-term urgency to solve this;
-so I'm take the pure-language design route.
+so I'm taking the pure-language design route.
 
   * We don't have users, and won't have them till the whole stack works. We won't have
     to worry about maintaining semantics or operational decisions when problems are
