@@ -9,12 +9,15 @@ github_banner:
   enable: false
   permalink: https://github.com/crutcher
 
+# Icons from: https://fontawesome.com/
+# <url> || fa fa-<id>
 menu:
   Home: / || fa fa-home
   Atom: /atom.xml || fab fa-atom
   Archives: /archives/ || fa fa-archive
   Tags: /tags/ || fa fa-tags
   Tapestry: /Tapestry/ || fa fa-diagram-project
+  Resume: /Resume/ || fa fa-solid fa-file
 
 social:
   GitHub: https://github.com/crutcher || fab fa-github
