@@ -57,7 +57,7 @@ external_link:
   exclude: ''
 filename_case: 0
 render_drafts: false
-post_asset_folder: false
+post_asset_folder: true
 relative_link: false
 future: true
 highlight:
@@ -115,6 +115,7 @@ ignore:
 # https://github.com/next-theme/hexo-filter-mathjax
 mathjax:
   tags: all
+  packages: [ "relsize" ]
 
 # Extensions
 ## Plugins: https://hexo.io/plugins/
