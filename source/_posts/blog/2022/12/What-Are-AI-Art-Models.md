@@ -23,18 +23,18 @@ to be useful for generating new data.
 
 Let's define some basic ideas; this is a picture of my cat, Eliza:
 
-<img src="eliza.source.png">
+<img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png">
 
 If I add some random noise to the picture, I might get this:
 
-<img src="eliza.noise.1.png">
+<img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png">
 
 Seen side-by-side, it's easy to see the noise:
 
 <table>
   <tr>
-    <td><img src="eliza.source.png" width="200"></td>
-    <td><img src="eliza.noise.1.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png" width="200"></td>
     </tr>
   </table>
 
@@ -45,9 +45,9 @@ I'd see something like this, which is clearly not random:
 
 <table>
   <tr>
-    <td><img src="eliza.source.png" width="200"></td>
-    <td><img src="eliza.noise.1.png" width="200"></td>
-    <td><img src="eliza.diff.0-1.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.diff.0-1.png" width="200"></td>
     </tr>
   </table>
 
@@ -58,20 +58,20 @@ to look like.
 
 So, given a picture like this:
 
-<img src="eliza.noise.1.png">
+<img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png">
 
 Can I apply some magic *Enhance* button to *clean up* the image,
 and get a picture like this:
 
-<img src="eliza.source.png">
+<img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png">
 
 Or side-by-side, can I go from the left, to the right:
 
 <table>
   <tr>
-    <td><img src="eliza.noise.1.png" width="200"></td>
-    <td><img src="eliza.diff.0-1.png" width="200"></td>
-    <td><img src="eliza.source.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.diff.0-1.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png" width="200"></td>
     </tr>
   </table>
 
@@ -107,14 +107,14 @@ and messing them up to various degrees:
 
 <table>
   <tr>
-    <td><img src="eliza.source.png" width="200"></td>
-    <td><img src="eliza.noise.1.png" width="200"></td>
-    <td><img src="eliza.noise.2.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.2.png" width="200"></td>
     </tr>
   <tr>
-    <td><img src="eliza.noise.3.png" width="200"></td>
-    <td><img src="eliza.noise.4.png" width="200"></td>
-    <td><img src="eliza.noise.5.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.3.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.4.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.5.png" width="200"></td>
     </tr>
   </table>
 
@@ -125,29 +125,29 @@ Teaching it to remove one step of noise from pictures of my cat:
 
 <table>
   <tr>
-    <td><img src="eliza.noise.1.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png" width="200"></td>
     <td> $ \Rightarrow $ </td>
-    <td><img src="eliza.source.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png" width="200"></td>
     </tr>
   <tr>
-    <td><img src="eliza.noise.2.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.2.png" width="200"></td>
     <td> $ \Rightarrow $ </td>
-    <td><img src="eliza.noise.1.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png" width="200"></td>
     </tr>
   <tr>
-    <td><img src="eliza.noise.3.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.3.png" width="200"></td>
     <td> $ \Rightarrow $ </td>
-    <td><img src="eliza.noise.2.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.2.png" width="200"></td>
     </tr>
   <tr>
-    <td><img src="eliza.noise.4.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.4.png" width="200"></td>
     <td> $ \Rightarrow $ </td>
-    <td><img src="eliza.noise.3.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.3.png" width="200"></td>
     </tr>
   <tr>
-    <td><img src="eliza.noise.5.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.5.png" width="200"></td>
     <td> $ \Rightarrow $ </td>
-    <td><img src="eliza.noise.4.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.4.png" width="200"></td>
     </tr>
   </table>
 
@@ -158,9 +158,9 @@ like a picture of my cat:
 
 <table>
   <tr>
-    <td><img src="eliza.noise.5.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.5.png" width="200"></td>
     <td> $ \Rightarrow $ </td>
-    <td><img src="eliza.source.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png" width="200"></td>
     </tr>
   </table>
 
@@ -265,30 +265,30 @@ also show it the embedded description context, as a key.
 <table style="text-align: center;">
   <tr>
     <td>
-      <img src="eliza.noise.1.png" width="200">
+      <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png" width="200">
         <br/>
       "Maine coon Cat laying on a white and black salt and pepper rug."
       </td>
     <td> $ \Rightarrow $ </td>
-    <td><img src="eliza.source.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png" width="200"></td>
     </tr>
   <tr>
     <td>
-      <img src="eliza.noise.2.png" width="200">
+      <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.2.png" width="200">
         <br/>
       "Maine coon Cat laying on a white and black salt and pepper rug."
       </td>
     <td> $ \Rightarrow $ </td>
-    <td><img src="eliza.noise.1.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png" width="200"></td>
     </tr>
   <tr>
     <td>
-      <img src="eliza.wood.noise.1.png" width="200">
+      <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.wood.noise.1.png" width="200">
         <br/>
       "Maine coon Cat laying on a wooden floor."
       </td>
     <td> $ \Rightarrow $ </td>
-    <td><img src="eliza.wood.png" width="200"></td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.wood.png" width="200"></td>
     </tr>
   </table>
 
@@ -309,24 +309,24 @@ A really common form of data-augmentation is flipping the original image:
 <table style="text-align: center;">
   <tr>
     <td>
-      <img src="eliza.source.png" width="200">
+      <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png" width="200">
       <br/>
       "Maine coon Cat laying on a white and black salt and pepper rug."
       </td>
     <td>
-      <img src="eliza.source.flip.png" width="200">
+      <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.flip.png" width="200">
       <br/>
       "Maine coon Cat laying on a white and black salt and pepper rug."
       </td>
     </tr>
   <tr>
     <td>
-      <img src="eliza.wood.png" width="200">
+      <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.wood.png" width="200">
       <br/>
       "Maine coon Cat laying on a wooden floor."
       </td>
     <td>
-      <img src="eliza.wood.flip.png" width="200">
+      <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.wood.flip.png" width="200">
       <br/>
       "Maine coon Cat laying on a wooden floor."
       </td>
@@ -339,12 +339,12 @@ the data *and* the description:
 <table style="text-align: center;">
   <tr>
     <td>
-      <img src="eliza.source.flip.cube.png" width="200">
+      <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.flip.cube.png" width="200">
       <br/>
       "Maine coon Cat laying on a white and black salt and pepper rug. <b>Cubism.</b>"
       </td>
     <td>
-      <img src="eliza.wood.oil.png" width="200">
+      <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.wood.oil.png" width="200">
       <br/>
       "Maine coon Cat laying on a white and black salt and pepper rug. <b>Oil painting.</b>"
       </td>
