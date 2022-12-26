@@ -47,6 +47,10 @@ markdown:
   render:
     breaks: false
 
+social_links:
+  # adds rel link
+  rss: /atom.xml
+
 # Writing
 new_post_name: blog/:year/:month/:title.md # File name of new posts
 default_layout: post
