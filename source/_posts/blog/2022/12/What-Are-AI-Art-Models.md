@@ -424,7 +424,7 @@ This seems like a simple question, but we can probably break it down into a whol
 But we can kick this back further:
    * When AI is taught to do a job, what do we owe to the people who are losing work to that AI?
 
-I, and many othre people, have strong opinions about these issues,
+I, and many other people, have strong opinions about these issues,
 but this isn't a post about the law or the ethics of applying AI to existing industries.
 
 Expect a *lot* of lawsuits and new legislation in this space for the rest
