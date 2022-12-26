@@ -459,7 +459,7 @@ pixel; to just 16 numbers; so it seems impossible to argue that the model has co
 What the model has done is learned how to describe things *like* each input image, in terms of and relative to other
 images it has seen, conditioned on the embedding contexts it was given.
 
-It's pretty compelling to *me* argue that the training data isn't in the model;
+It's pretty compelling to *me* to argue that the training data isn't in the model;
 the models have learned what high level concepts imply; concepts like:
   * Cat
   * Oil Painting
