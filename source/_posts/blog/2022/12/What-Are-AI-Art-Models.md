@@ -189,16 +189,16 @@ of lots of things other than pictures of my cat, Eliza;
 the simplest way would be to just *train a lot of different models*.
 
 Let's name the current model:
-   * "Maine coon Cat laying on a white and black salt and pepper rug."
+   * "Maine coon cat laying on a white and black salt and pepper rug."
 
 Now, my model of my cat is certainly bigger than one picture, but it's probably
 a lot smaller than all the pictures I used to train it; probably a *lot*
 smaller if I've used good math to do the job.
 
 If I want to be able to denoise other things, I could train other models, say:
-   * "Maine coon Cat sitting on a white and black salt and pepper rug."
-   * "Maine coon Cat laying on wooden floor."
-   * "Maine coon Cat sitting on a wooden floor."
+   * "Maine coon cat sitting on a white and black salt and pepper rug."
+   * "Maine coon cat laying on wooden floor."
+   * "Maine coon cat sitting on a wooden floor."
    * "Planes on a runway."
    * Etc.
 
@@ -224,8 +224,8 @@ we're looking at, and turn it into some kind of key so that models can
 share information.
 
 It would be nice if these two models could share their *cat-related* information:
-   * "Maine coon Cat laying on a white and black salt and pepper rug."
-   * "Maine coon Cat laying on wooden floor."
+   * "Maine coon cat laying on a white and black salt and pepper rug."
+   * "Maine coon cat laying on wooden floor."
 
 But how do we translate text into a key that models can use?
 
@@ -247,16 +247,16 @@ Later, mechanisms to fuse series of words into vectors, which maintained
 some notion of their original ordering, were invented.
 
 So, today, we can perform embedding math similar to:
-  * "Maine coon Cat laying on a white and black salt and pepper rug."
+  * "Maine coon cat laying on a white and black salt and pepper rug."
   * \- (offset:7)"white and black salt and pepper rug"
   * \+ (offset:7)"wooden floor"
-  * =~ "Maine coon Cat laying on wooden floor."
+  * =~ "Maine coon cat laying on wooden floor."
 
 # Overlapping Diffusion Models
 
 Now we can train a bigger model, much bigger than we would have trained for
 just one kind of thing:
-   * "Maine coon Cat laying on a white and black salt and pepper rug."
+   * "Maine coon cat laying on a white and black salt and pepper rug."
 
 But trained on many, many kinds of things. But in addition to training
 the model on the noisy image, and the slightly-less noisy image; we'll
@@ -267,7 +267,7 @@ also show it the embedded description context, as a key.
     <td>
       <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png" width="200">
         <br/>
-      "Maine coon Cat laying on a white and black salt and pepper rug."
+      "Maine coon cat laying on a white and black salt and pepper rug."
       </td>
     <td> $ \Rightarrow $ </td>
     <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png" width="200"></td>
@@ -276,7 +276,7 @@ also show it the embedded description context, as a key.
     <td>
       <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.2.png" width="200">
         <br/>
-      "Maine coon Cat laying on a white and black salt and pepper rug."
+      "Maine coon cat laying on a white and black salt and pepper rug."
       </td>
     <td> $ \Rightarrow $ </td>
     <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png" width="200"></td>
@@ -285,7 +285,7 @@ also show it the embedded description context, as a key.
     <td>
       <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.wood.noise.1.png" width="200">
         <br/>
-      "Maine coon Cat laying on a wooden floor."
+      "Maine coon cat laying on a wooden floor."
       </td>
     <td> $ \Rightarrow $ </td>
     <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.wood.png" width="200"></td>
@@ -311,24 +311,24 @@ A really common form of data-augmentation is flipping the original image:
     <td>
       <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png" width="200">
       <br/>
-      "Maine coon Cat laying on a white and black salt and pepper rug."
+      "Maine coon cat laying on a white and black salt and pepper rug."
       </td>
     <td>
       <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.flip.png" width="200">
       <br/>
-      "Maine coon Cat laying on a white and black salt and pepper rug."
+      "Maine coon cat laying on a white and black salt and pepper rug."
       </td>
     </tr>
   <tr>
     <td>
       <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.wood.png" width="200">
       <br/>
-      "Maine coon Cat laying on a wooden floor."
+      "Maine coon cat laying on a wooden floor."
       </td>
     <td>
       <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.wood.flip.png" width="200">
       <br/>
-      "Maine coon Cat laying on a wooden floor."
+      "Maine coon cat laying on a wooden floor."
       </td>
     </tr>
   </table>
@@ -341,22 +341,73 @@ the data *and* the description:
     <td>
       <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.flip.cube.png" width="200">
       <br/>
-      "Maine coon Cat laying on a white and black salt and pepper rug. <b>Cubism.</b>"
+      "Maine coon cat laying on a white and black salt and pepper rug. <b>Cubism.</b>"
       </td>
     <td>
       <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.wood.oil.png" width="200">
       <br/>
-      "Maine coon Cat laying on a white and black salt and pepper rug. <b>Oil painting.</b>"
+      "Maine coon cat laying on a white and black salt and pepper rug. <b>Oil painting.</b>"
       </td>
     </tr>
   </table>
+
+# Generating New Images
+
+We can start by generating some random noise:
+<img src="/2022/12/25/What-Are-AI-Art-Models/noise.png" width="200">
+
+And giving the model a prompt:
+   * "Maine coon cat laying on a carpet."
+
+Starting from random noise, the denoiser picks local features that are kinda
+plausible from the prompt, and begins moving the image towards something
+that has some of those features.
+
+As parts of the image come into focus, they are forced to make sense relative
+to their neighbors, and the features refine towards more plausible results.
+
+<table style="text-align: center;">
+  <tr>
+    <td>
+      <img src="/2022/12/25/What-Are-AI-Art-Models/noise.ear.png" width="200">
+        <br/>
+      "Maine coon cat laying on a carpet."
+      </td>
+    <td> $ \Rightarrow $ </td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/noise.ear.result.png" width="200"></td>
+   </tr>
+  <tr>
+    <td colspan="3">... many steps later ...</td>
+    </tr>
+  <tr>
+    <td>
+      <img src="/2022/12/25/What-Are-AI-Art-Models/noise.ear.result.png" width="200">
+        <br/>
+      "Maine coon cat laying on a carpet."
+      </td>
+    <td> $ \Rightarrow $ </td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.5.png" width="200"></td>
+  <tr>
+    <td colspan="3">... many steps later ...</td>
+    </tr>
+  <tr>
+    <td>
+      <img src="/2022/12/25/What-Are-AI-Art-Models/eliza.noise.1.png" width="200">
+        <br/>
+      "Maine coon cat laying on a carpet."
+      </td>
+    <td> $ \Rightarrow $ </td>
+    <td><img src="/2022/12/25/What-Are-AI-Art-Models/eliza.source.png" width="200"></td>
+   </tr>
+  </table>
+
 
 # Novel Combinations
 
 Once we've got this big overlapping model, keyed on embedded descriptions;
 we can start asking it for things we *don't* have pictures of:
    * "Main coon cat laying on runway on Mars."
-
+ 
 The question of "Does this Work?" is tied up in the math of how good
 a job we did on the math for the text embeddings; and how good a
 job we did on the math of how the model uses those embeddings to
@@ -408,11 +459,12 @@ pixel; to just 16 numbers; so it seems impossible to argue that the model has co
 What the model has done is learned how to describe things *like* each input image, in terms of and relative to other
 images it has seen, conditioned on the embedding contexts it was given.
 
-It's pretty compelling to argue that the training data isn't in the model;
+It's pretty compelling to *me* argue that the training data isn't in the model;
 the models have learned what high level concepts imply; concepts like:
   * Cat
   * Oil Painting
   * Picasso
+
 
 Now, some of those concepts are tightly coupled with the style and work
 of current artists and companies with a stake in IP law and financial
@@ -423,6 +475,45 @@ survival, which raise other interesting and important questions:
      * do we need new law and contracts?
    * do we want to extend IP to cover style and inspiration?
      * can we do this in a way which doesn't hurt artists more than it helps them?
+
+# Is this just copying by obfuscation?
+
+I want to call out a point here.
+The above argument (2 bytes per training example can't be copying) is extremely compelling to me;
+and I've found it to be compelling to others with a formal background in information theory,
+we see it as wildly too small to be anything like a compression or copy of the source data.
+
+But it isn't a compelling argument to many people without that background. The feedback
+I've received is that they're concerned this is a form of shell game, copying by obfuscation.
+They're moving the math around to hide the trick, is the argument.
+
+And I don't know how to counter that argument, without saying "learn the math";
+but it feels like a real crux of one of the issues here.
+
+In discussion with people, when it feels like some progress is being made on the question
+of, is this *copying* in some sense, an even more interesting objection arises, that I'll paraphrase here:
+
+> **The argument against robotic fair-use:**
+> \
+> While this might not be copying, I object to calling this "learning" and I'm unhappy with
+> the idea that this is ok.
+> \
+> Humans have a fair-use right to learn from material, that grants them moral rights to
+> observe and consider things which supersede the rights of the creators of art to control
+> the use of their material. The right to observe is protected above other rights.
+> \
+> Calling this "learning" implies that right; but the computer isn't a person, and so can't
+> have that moral right. The information derived from observing art, even if it conclusively
+> *isn't* a copy, is still violating rights of the author of the training examples which
+> take precedence because they are not being superseded by fair-use rights to observe.
+> \
+> Humans should have a legal right to look at things without compensation robots should not have.
+
+I believe that there is a deep cultural divide on this argument, and it's worth clarifying
+what the actual disagreement is when moving forward with AI training. I think some people
+accept this strongly as deeply and morally true, and some people reject it strongly
+as deeply and morally untrue; and bringing this question forward is more clarifying
+of that disagreement than an argument about the information content of a model.
 
 
 # Is it legal to train on copyrighted art?
