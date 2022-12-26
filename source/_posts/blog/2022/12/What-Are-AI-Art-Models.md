@@ -402,15 +402,28 @@ Some numbers there:
 And this is ignoring the size of the text prompts in the training;
 and their representation in the model's embedding spaces.
 
-The training data isn't in the model; the models have learned what high level
-concepts imply; concepts like:
+Technically, mathematically, the model contains at most 2 bytes of information for every training image. Were we to
+claim it had copied the training data, we'd need to argue that we can compress a 256x256 image down to less than one
+pixel; to just 16 numbers; so it seems impossible to argue that the model has copied the data.
+What the model has done is learned how to describe things *like* each input image, in terms of and relative to other
+images it has seen, conditioned on the embedding contexts it was given.
+
+It's pretty compelling to argue that the training data isn't in the model;
+the models have learned what high level concepts imply; concepts like:
   * Cat
   * Oil Painting
   * Picasso
 
 Now, some of those concepts are tightly coupled with the style and work
 of current artists and companies with a stake in IP law and financial
-survival, which brings us to the Big Question.
+survival, which raise other interesting and important questions:
+   * is it ok to learn from IP controlled information, even without copying it?
+     * what are the limits on this?
+     * is this covered by existing law and contracts?
+     * do we need new law and contracts?
+   * do we want to extend IP to cover style and inspiration?
+     * can we do this in a way which doesn't hurt artists more than it helps them?
+
 
 # Is it legal to train on copyrighted art?
 
