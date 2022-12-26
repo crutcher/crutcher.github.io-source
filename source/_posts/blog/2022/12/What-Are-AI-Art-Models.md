@@ -507,7 +507,7 @@ of, is this *copying* in some sense, an even more interesting objection arises, 
 > *isn't* a copy, is still violating rights of the author of the training examples which
 > take precedence because they are not being superseded by fair-use rights to observe.
 > \
-> Humans should have a legal right to look at things without compensation robots should not have.
+> Humans should have a legal right to look at things without compensation that robots should not have.
 
 I believe that there is a deep cultural divide on this argument, and it's worth clarifying
 what the actual disagreement is when moving forward with AI training. I think some people
