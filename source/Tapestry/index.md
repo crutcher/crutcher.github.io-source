@@ -168,7 +168,7 @@ The operation is intended as a stand-in for the fully-connected linear layer ope
 neural networks:
 
 $$
-Linear(X, W, b) := X \cdot W + b
+Linear(X_{[batch,in]}, W_{[in,out]}, b_{[out]}) := X \times W + b
 $$
 
 By examining the implementation of $Linear$, and assuming that $X$ has shape $[batch, in]$ ,
@@ -1000,7 +1000,7 @@ but some of the implications can be complex to unpack. We'll explore a few here.
 Consider $Linear$ again:
 
 $$
-Linear(X, W, b) := X \cdot W + b
+Linear(X_{[batch,in]}, W_{[in,out]}, b_{[out]}) := X \times W + b
 $$
 
 In order to discuss projection functions, we need to extract the dimensions
@@ -1604,7 +1604,7 @@ digraph G {
 ### Sharding $Linear$ over the `out` dimension
 
 $$
-Linear(X, W, b) := X \cdot W + b
+Linear(X, W, b) := X \times W + b
 $$
 
 We'll now consider the projection functions $P_W(i)$, $P_b(i)$, and $P_Y(i)$;

@@ -7,20 +7,17 @@ mathjax: true
 date: 2022-12-17 09:34:34
 ---
 
-
-### Series
-
 This post develops part of this document:
    * [Tapestry: Shardable Tensor Expression Languages](/Tapestry)
 
 # Sharding $Linear$ over the `out` dimension
 
-In the previous post on [Index Projection Functions](/2022/12/Index-Projection-Functions/),
-we developed affine projections for the batch dimension of a tensor-valued $Linear$ operation,
+In the previous post on [Index Projection Functions](/2022/12/13/Index-Projection-Functions/),
+we developed affine projections for the $batch$ dimension of a tensor-valued $Linear$ operation,
 assuming dimensions: $X: [batch, in]$, $W: [in, out]$, $b: [out]$, $Y: [batch, out]$:
 
 $$
-Linear(X, W, b) := X \cdot W + b
+Linear(X, W, b) := X \times W + b
 $$
 
 We'll now consider the projection functions $P_W(i)$, $P_b(i)$, and $P_Y(i)$;
