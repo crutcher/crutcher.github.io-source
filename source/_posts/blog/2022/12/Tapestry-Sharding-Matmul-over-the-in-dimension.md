@@ -1155,7 +1155,7 @@ digraph G {
                 </tr>
             <tr>
                 <td bgcolor="#D6EAF8">x<sub>batch,in</sub></td>
-                <td>…</td>
+                <td bgcolor="#D6EAF8">…</td>
                 </tr>
             <tr>
                 <td>⋰</td>
@@ -1170,15 +1170,15 @@ digraph G {
         label=<
         <table cellpadding="8">
             <tr>
-                <td>⋱</td>
+                <td bgcolor="#D6EAF8">w<sub>in,out</sub></td>
                 <td>⋰</td>
                 </tr>
             <tr>
-                <td bgcolor="#D6EAF8">w<sub>in,out</sub></td>
+                <td bgcolor="#D6EAF8">…</td>
                 <td>…</td>
                 </tr>
             <tr>
-                <td>⋰</td>
+                <td bgcolor="#D6EAF8">⋰</td>
                 <td>⋱</td>
                 </tr>
             </table>
