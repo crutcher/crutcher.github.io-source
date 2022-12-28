@@ -1076,6 +1076,23 @@ digraph G {
         >,
     ];
     
+    b [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td bgcolor="#D6EAF8">b<sub>out</sub></td>
+                </tr>
+            <tr>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>…</td>
+                </tr>
+            </table>
+        >,
+    ];
+
     Sum [
         label=Sum,
         shape=rarrow,
@@ -1105,9 +1122,11 @@ digraph G {
     ];
     
     v -> Sum;
+    b -> Sum;
     Sum -> y;
     
     idx3 -> v [label=<P<sub>V</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+    idx3 -> b [label=<P<sub>B</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx3 -> y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     
     { rank=same; Sum; idx3; }
@@ -1184,6 +1203,23 @@ digraph G {
             </table>
         >,
     ];
+    
+    b [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td bgcolor="#D6EAF8">b<sub>out</sub></td>
+                </tr>
+            <tr>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>…</td>
+                </tr>
+            </table>
+        >,
+    ];
 
     Linear [
         label=Linear,
@@ -1215,9 +1251,11 @@ digraph G {
 
     x -> Linear;
     w -> Linear;
+    b -> Linear;
     Linear -> y;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+    idx -> b [label=<P<sub>B</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> w [label=<P<sub>W</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
 
