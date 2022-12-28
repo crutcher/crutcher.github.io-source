@@ -2391,7 +2391,7 @@ $$
 \begin{eqnarray}
 Matmul(X_{[batch,in]}, W_{[in,out]})_{[batch,out]} &:=& X\_{[batch,in]} \times W\_{[in,out]\} \\\\
 &=& SumDim \left( \begin{split}
-(X\_{[batch,in,1]} \cdot W\_{[1,in,out]})\_{[batch,in,out]}, \\\\
+(X\_{[batch,in,1]} \times W\_{[1,in,out]})\_{[batch,in,out]}, \\\\
 dim = \langle in \rangle
 \end{split} \right)
 \end{eqnarray}
