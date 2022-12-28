@@ -1114,6 +1114,121 @@ digraph G {
 }
 ```
 
+Or, in the special case where we do not shard on $in$, we can rewrite as:
+
+```graphviz
+digraph G {
+    rankdir=LR;
+
+    idx [
+        shape="plain",
+        label=<
+	<table border="0">
+        <tr><td>
+            <table cellpadding="8">
+                <tr>
+                    <td>…</td>
+                    <td>…</td>
+                    </tr>
+                <tr>
+                    <td bgcolor="#D6EAF8" align="center">batch,out</td>
+                    <td>…</td>
+                    </tr>
+                <tr>
+                    <td>…</td>
+                    <td>…</td>
+                    </tr>
+                </table>
+	  </td></tr>
+        <tr><td><i>index</i></td></tr>
+	  </table>
+        >,
+    ];
+
+    x [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>⋱</td>
+                <td>⋰</td>
+                </tr>
+            <tr>
+                <td bgcolor="#D6EAF8">x<sub>batch,in</sub></td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>⋰</td>
+                <td>⋱</td>
+                </tr>
+            </table>
+        >,
+    ];
+    
+    w [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>⋱</td>
+                <td>⋰</td>
+                </tr>
+            <tr>
+                <td bgcolor="#D6EAF8">w<sub>in,out</sub></td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>⋰</td>
+                <td>⋱</td>
+                </tr>
+            </table>
+        >,
+    ];
+
+    Linear [
+        label=Linear,
+        shape=rarrow,
+        style=filled,
+        fillcolor="#E5E8E8",
+        margin=0.3
+    ];
+
+    y [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>…</td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td bgcolor="#D6EAF8">y<sub>batch,out</sub></td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>…</td>
+                <td>…</td>
+                </tr>
+            </table>
+        >,
+    ];
+
+    x -> Linear;
+    w -> Linear;
+    Linear -> y;
+
+    idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+    idx -> w [label=<P<sub>W</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+    idx -> y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+
+    { rank=same; Linear; idx; }
+}
+```
+
+Being able to express this re-write option, when the $in$ dimension is not sharded,
+will require us to develop high-order meta-operator representation above the index
+projection function formalism.
+
 ## Next
 
 The full decomposition of $Linear$ provides a pathway to sharding potentially large operations,
