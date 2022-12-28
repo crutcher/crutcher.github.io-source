@@ -118,7 +118,7 @@ Designing new evaluation languages requires that we work backwards from informal
 for systems of formal semantics constructed from building blocks already known to math
 and computer science, which come closest to satisfying the design goals.
 
-I like to cast much of this as searching for functor embeddings which a given set of
+I like to cast much of this as searching for functor embeddings with a given set of
 properties, because if we can find a functor embedding into an abstract execution
 environment with semantics similar to the machine environments we wish to target;
 translation from the functor embedding to the actual machines tends to be straightforward.
