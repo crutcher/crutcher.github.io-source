@@ -970,7 +970,7 @@ digraph G {
 
     Linear [
         label=Linear,
-        shape=rpromoter,
+        shape=Msquare,
         style=filled,
         fillcolor="#E5E8E8",
         margin=0.3
@@ -1270,7 +1270,8 @@ digraph G {
 ```
 
 And when sharding is $not$ desired over the $in$ dimension; $Linear$
-expands to a graph over the one-step $LinearBlock$ operation:
+expands to a graph over the one-step $LinearBlock$ operation, which
+behaves the way our previous description of $Linear$ behaved:
 
 ```graphviz
 digraph G {
