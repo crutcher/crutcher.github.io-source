@@ -874,8 +874,144 @@ $$ \begin{eqnarray\*}
 Linear(X_{[batch,in]}, W_{[in,out]}, b_{[out]})_{[batch,out]} := X \times W + b
 \end{eqnarray\*} $$
 
-We can now express $Linear$ shardable over the $batch$, $in$, and $out$ dimensions as a graph of
-$Prod$, $SumDim$, and $Sum$ operations:
+We can now express $Linear$ as a form of high-level reduction operation,
+over the $batch$, $in$, and $out$ dimensions:
+
+```graphviz
+digraph G {
+    rankdir=LR;
+
+    idx [
+        shape="plain",
+        label=<
+	<table border="0">
+        <tr><td>
+            <table border="0">
+            <tr><td>
+              <table cellpadding="8">
+                  <tr>
+                      <td>…</td>
+                      <td>…</td>
+                      </tr>
+                  <tr>
+                      <td bgcolor="#D6EAF8" align="center">batch,out</td>
+                      <td>…</td>
+                      </tr>
+                  <tr>
+                      <td>…</td>
+                      <td>…</td>
+                      </tr>
+                  </table>
+              </td></tr>
+              <tr><td align="center">⟪in⟫</td></tr>
+              </table>
+	  </td></tr>
+        <tr><td><i>index</i></td></tr>
+	  </table>
+        >,
+    ];
+
+    x [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>⋱</td>
+                <td>⋰</td>
+                </tr>
+            <tr>
+                <td bgcolor="#D6EAF8">x<sub>batch,in</sub></td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>⋰</td>
+                <td>⋱</td>
+                </tr>
+            </table>
+        >,
+    ];
+    
+    w [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td bgcolor="#D6EAF8">w<sub>in,out</sub></td>
+                <td>⋰</td>
+                </tr>
+            <tr>
+                <td>…</td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>⋰</td>
+                <td>⋱</td>
+                </tr>
+            </table>
+        >,
+    ];
+    
+    b [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td bgcolor="#D6EAF8">b<sub>out</sub></td>
+                </tr>
+            <tr>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>…</td>
+                </tr>
+            </table>
+        >,
+    ];
+
+    Linear [
+        label=Linear,
+        shape=rpromoter,
+        style=filled,
+        fillcolor="#E5E8E8",
+        margin=0.3
+    ];
+
+    y [
+        shape="plain",
+        label=<
+        <table cellpadding="8">
+            <tr>
+                <td>…</td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td bgcolor="#D6EAF8">y<sub>batch,out</sub></td>
+                <td>…</td>
+                </tr>
+            <tr>
+                <td>…</td>
+                <td>…</td>
+                </tr>
+            </table>
+        >,
+    ];
+
+    x -> Linear;
+    w -> Linear;
+    b -> Linear;
+    Linear -> y;
+
+    idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+    idx -> b [label=<P<sub>B</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+    idx -> w [label=<P<sub>W</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+    idx -> y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+
+    { rank=same; Linear; idx; }
+}
+```
+
+When sharding is desired over the $in$ dimension, $Linear$ expands to the following
+sub-graph of $Prod$, $SumDim$, and $Sum$ operations:
 
 ```graphviz
 digraph G {
@@ -1133,7 +1269,8 @@ digraph G {
 }
 ```
 
-Or, in the special case where we do not shard on $in$, we can rewrite as:
+And when sharding is $not$ desired over the $in$ dimension; $Linear$
+expands to a graph over the one-step $LinearBlock$ operation:
 
 ```graphviz
 digraph G {
@@ -1222,7 +1359,7 @@ digraph G {
     ];
 
     Linear [
-        label=Linear,
+        label=LinearBlock,
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
