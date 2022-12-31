@@ -1,0 +1,13 @@
+
+
+# Setup
+
+Setup the npm environment:
+```
+npm -i
+```
+
+# Run the preview server:
+```
+hexo server
+```
