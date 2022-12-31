@@ -1,5 +1,5 @@
 ---
-title: 'Tapestry: Conditonal Expansion and Graph Rewrite Rules'
+title: 'Tapestry: Conditional Expansion and Graph Rewrite Rules'
 tags:
 ---
 
