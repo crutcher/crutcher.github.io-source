@@ -1,6 +1,6 @@
 ---
 title: 'Tapestry: Conditional Expansion and Graph Rewrite Rules'
-tags:
+tags: ["tapestry"]
 ---
 
 TODO:
