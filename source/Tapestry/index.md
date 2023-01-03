@@ -7,7 +7,7 @@ mathjax: true
 
 <img src="/Tapestry/tapestry.pastel.svg" width="200"/>
 
-# Abstract
+## Abstract
 
 > Note: Document Completion Progress ~= 5%
 
@@ -47,7 +47,7 @@ be proven to be equivalent)
 a semantic core with the fewest prior operators and constraints, designed
 to enable aggressive stochastic graph rewrite optimizers.
 
-# The Tapestry Vision
+## The Tapestry Vision
 
 To explain the larger vision of Tapestry, we need to explore the uses cases
 of a large system which does not yet exist, which we'll also call Tapestry.
@@ -148,11 +148,11 @@ describe operator injection into distributed tensor environments.
 Tapestry is an effort to describe such a formalism, focusing on shardable by construction
 operation graph semantics.
 
-## Applications
+### Applications
 
 A brief review of some applications of a tapestry environment.
 
-### Artificial Intelligence and Machine Learning
+#### Artificial Intelligence and Machine Learning
 
 Deep learning AI/ML applications describe models as stacks of tensor-valued weights,
 connected by a computation graph describing how tensor-valued data injected into
@@ -170,7 +170,7 @@ the requirements for much of the task-specific operational scaling engineering;
 while simultaneously reducing the research costs, by optimizing the resulting
 operations graphs to more effectively utilize available resources.
 
-### Finite Element Simulations
+#### Finite Element Simulations
 
 Finite element simulations decompose a problem (weather, heat flow, stress) onto
 tensors describing a space to be simulated, valued in terms of the material
@@ -188,9 +188,9 @@ An effective tapestry environment sufficient to host finite element simulations
 would permit accelerated research into anything built upon finite element simulations;
 which includes a great deal of modern engineering and physical sciences applications.
 
-# The Tapestry Plan
+## The Tapestry Plan
 
-## Overview
+### Overview
 
 I'm developing out a project in defining the bottom-up sharding and scheduling of grid-scale
 tensor expression languages; its name is "Tapestry", for the way expression
@@ -211,7 +211,7 @@ so I'm taking a first-principles formal language design route.
 * We will have some trouble acquiring people to help; everything is going to
   appear *very* abstract until the functional machinery is in-place.
 
-## Stages
+### Stages
 
 *Tapestry* will be built out in the following stages of work, which correspond to a series
 of technical embeddings going deeper into the stack, and will remain as rewrite layers.
@@ -242,7 +242,7 @@ The goal is:
 > (we can prove that it *can* be made fast); then make it easy to program for to
 > get more help; then make it fast.
 
-## References
+### References
 
 This is an active field of research for me; I believe that index projection functions are a viable solution to this,
 and I've done a fair amount of background work on large transform environments.
@@ -254,7 +254,7 @@ and I've done a fair amount of background work on large transform environments.
 * [MLIR Polyhedral Types](https://mlir.llvm.org/docs/Dialects/Affine/)
     - the current LLVM work on polyhedral types for MLIR.
 
-# The Distributed Tensor Expression Problem
+## The Distributed Tensor Expression Problem
 
 The tensor evaluation language problem:
 
@@ -288,7 +288,7 @@ However, quite a few pieces of the current system pose problems for these *smart
 If, as an exercise, we drop any notion of compatibility with existing `numpy`-derived
 apis; I'm interested in the question of how far we can get?
 
-## Expanding a Toy Example
+### Expanding a Toy Example
 
 Designing new evaluation languages requires that we work backwards from informal semantics
 (things *similar* to things we want to be able to say) and operational requirements
@@ -586,7 +586,7 @@ digraph D {
 These series of transformations are possible because we know (or assume) details about
 the structural co-variance of the inputs and outputs to the operations $Linear$ and $ReLU$.
 
-# Restricting to Shardable Operators
+## Restricting to Shardable Operators
 
 We cannot assume that any arbitrary operation from a collection of named tensors (the parameters)
 to a collection of named tensors (the results) will have cleanly explicable structural co-variance
@@ -974,7 +974,7 @@ digraph G {
 }
 ```
 
-# Operator Index Counting
+## Operator Index Counting
 
 Crucially, the goal is to be able to shard:
 
@@ -1142,7 +1142,7 @@ $Operator$s) is solvable by construction (but limited to findable constructions)
 * Bottom-Up: Given a menagerie of known projection functions $P_T(i)$,
   what $Operators$ can I construct?
 
-# Affine Projection Functions
+## Affine Projection Functions
 
 One design approach for solving the $P_T(i)$ projection design problem is the use of
 coordinate space (integer, $\mathbb{Z}$) affine transforms (linear projections) from the index space
@@ -1181,7 +1181,7 @@ particularly in the face of shared input (as with convolution operations).
 As with many matrix transform operations, the basic definitions are simple;
 but some of the implications can be complex to unpack. We'll explore a few here.
 
-## Linear Strides Over a Batch Dimension
+### Linear Strides Over a Batch Dimension
 
 Consider $Linear$ again:
 
@@ -1787,7 +1787,7 @@ digraph G {
 }
 ```
 
-## Sharding Linear over the out dimension
+### Sharding Linear over the out dimension
 
 $$
 Linear(X, W, b) := X \times W + b
@@ -2472,7 +2472,7 @@ digraph G {
 }
 ```
 
-# Sharding Linear, and Matmul, over the in dimension
+## Sharding Linear, and Matmul, over the in dimension
 
 Previously we developed affine projection sharding over the $batch$ and $out$ dimensions of a tensor-valued $Linear$
 operation, assuming dimensions: $X: [batch, in]$, $W: [in, out]$, $b: [out]$, $Y: [batch, out]$:
@@ -2605,7 +2605,7 @@ In this decomposition, $Prod$ is a well-behaved block operation; but
 $SumDim$ is represented differently, it is not a block operation as we've represented them
 before, but a *reduction operation*.
 
-## Sharding Prod
+### Sharding Prod
 
 Consider $Prod$; a simple cell-wise multiplication. We expect the output
 to have the same shape and dimensions as the input:
@@ -2778,7 +2778,7 @@ digraph G {
 > 📝 Note: careful readers may note that this involves the same input
 > data being read by multiple output cells.
 
-## Reduction Operations
+### Reduction Operations
 
 Reduction operations require information *between* cells, on the face they
 don't appear shardable. Consider the index projections for a
@@ -3130,7 +3130,7 @@ digraph G {
 }
 ```
 
-## Rewriting Matmul
+### Rewriting Matmul
 
 Returning to the definition of $Matmul$,
 
@@ -3324,7 +3324,7 @@ digraph G {
 }
 ```
 
-## Sharding Linear over in
+### Sharding Linear over in
 
 Putting this together with the definition of $Linear$,
 
@@ -3863,7 +3863,7 @@ Being able to express this re-write option, when the $in$ dimension is not shard
 will require us to develop high-order meta-operator representation above the index
 projection function formalism.
 
-# Next
+## Next
 
 The full decomposition of $Linear$ provides a pathway to sharding potentially large operations,
 at the cost of decomposing operations which can be represented by highly space and time
