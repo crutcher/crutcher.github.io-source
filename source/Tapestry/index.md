@@ -110,7 +110,7 @@ operation graph semantics.
 
 A brief review of some applications of a tapestry environment.
 
-### Artificial Intelligence / Machine Learning
+### Artificial Intelligence and Machine Learning
 
 Deep learning AI/ML applications describe models as stacks of tensor-valued weights,
 connected by a computation graph describing how tensor-valued data injected into
@@ -1130,7 +1130,7 @@ particularly in the face of shared input (as with convolution operations).
 As with many matrix transform operations, the basic definitions are simple;
 but some of the implications can be complex to unpack. We'll explore a few here.
 
-### Linear Strides Over a Batch Dimension
+## Linear Strides Over a Batch Dimension
 
 Consider $Linear$ again:
 
@@ -1736,7 +1736,7 @@ digraph G {
 }
 ```
 
-### Sharding $Linear$ over the `out` dimension
+## Sharding Linear over the out dimension
 
 $$
 Linear(X, W, b) := X \times W + b
@@ -2421,7 +2421,7 @@ digraph G {
 }
 ```
 
-# Sharding $Linear$, and $Matmul$, over the `in` dimension
+# Sharding Linear, and Matmul, over the in dimension
 
 Previously we developed affine projection sharding over the $batch$ and $out$ dimensions of a tensor-valued $Linear$
 operation, assuming dimensions: $X: [batch, in]$, $W: [in, out]$, $b: [out]$, $Y: [batch, out]$:
@@ -2554,7 +2554,7 @@ In this decomposition, $Prod$ is a well-behaved block operation; but
 $SumDim$ is represented differently, it is not a block operation as we've represented them
 before, but a *reduction operation*.
 
-## Sharding $Prod$
+## Sharding Prod
 
 Consider $Prod$; a simple cell-wise multiplication. We expect the output
 to have the same shape and dimensions as the input:
@@ -3080,7 +3080,7 @@ digraph G {
 }
 ```
 
-## Rewriting $Matmul$
+## Rewriting Matmul
 
 Returning to the definition of $Matmul$,
 
@@ -3274,7 +3274,7 @@ digraph G {
 }
 ```
 
-## Sharding $Linear$ over $in$
+## Sharding Linear over in
 
 Putting this together with the definition of $Linear$,
 
