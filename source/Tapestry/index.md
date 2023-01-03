@@ -9,14 +9,48 @@ mathjax: true
 
 # Abstract
 
+> Note: Document Completion Progress ~= 5%
+
 This document represents my living attempt to describe work I'm doing in research
 on the design and implementation of shardable tensor expression languages. It's going
 to take time to fill all the way in, and this is my roll-up single entry point document.
 
+This is work in the same space as existing tensor environments and compilers:
+
+* [jax pjit](https://jax.readthedocs.io/en/latest/jax-101/08-pjit.html)
+* [MLIR](https://mlir.llvm.org/)
+* [pytorch tau](https://github.com/pytorch/tau)
+
+It also extends many ideas from existing environments:
+
+* Data Pipeline Languages
+    * [Apache Spark](https://spark.apache.org/)
+    * [Google Dataflow](https://cloud.google.com/dataflow)
+* Graph-rewriting Functional Languages:
+    * [Haskell](https://www.haskell.org/)
+    * [OCaml](https://ocaml.org/)
+* And of course, [SQL](https://en.wikipedia.org/wiki/SQL)
+
+Existing work in the space has focused on making existing languages distribute well,
+or on getting the best performance out of tensor backends. The work has been constrained
+by the semantics of the existing environments and backends; the distributed work has
+been heavily constrained by the needs to retain environments that look similar to
+existing datascience languages, and the local kernel work has focused heavily on
+maximally exploiting the specific GPU/TPU hardware target languages.
+
+This work focuses on a bottom-up, shardable-by-construction approach
+to the distributed tensor expression problem
+(each core operations can be proven to be shardable, each operation
+composition can be proven to be shardable, and each graph-rewrite can
+be proven to be equivalent)
+; deriving and explaining
+a semantic core with the fewest prior operators and constraints, designed
+to enable aggressive stochastic graph rewrite optimizers.
+
 # The Tapestry Vision
 
 To explain the larger vision of Tapestry, we need to explore the uses cases
-of a large system which does not yet exist, which we'll also call A Tapestry.
+of a large system which does not yet exist, which we'll also call Tapestry.
 
 > Note: The motivation for the synecdoche here is taken from SQL, where SQL is both
 > the language and the environment, as their semantics are formal and shared.
@@ -41,6 +75,7 @@ holding both storage and compute resources. Interconnected service grids
 where point-to-point communication is abstracted into semantic routing
 are frequently called "meshes" and "fabrics"; to be specific here
 we'll call this:
+
 * a tensor fabric, or
 * a tapestry environment
 
@@ -54,6 +89,7 @@ in terms of the total environment.
 One way of thinking of this is as a *very* large `numpy` or `torch` environment.
 
 Suppose we can perform a few operations in this environment:
+
 * Allocate and manage named tensors in the environment.
 * Copy portions of tensors into other tensors.
 * Load and export external data into and from named tensors in the environment;
@@ -62,9 +98,9 @@ Suppose we can perform a few operations in this environment:
 <img src="/Tapestry/tapestry.io.svg"/>
 
 This is a very basic environment; and for now, we've omitted a number of details.
+
 * How is the data split between nodes?
 * How is node recovery managed (do we have duplicate copies of the data)?
-
 
 Given only the ability to create storage, move data around, and move data
 into and out of the tapestry; we've defined an environment with scratch-space semantics.
@@ -79,10 +115,12 @@ but not in places or shards we know about.
 
 To be able to inject functions, we desire a way to describe semantic actions
 we wish to take on the data ("apply this function to that tensor, yielding a new tensor"):
+
 * without specifying the details of the layout or scheduling,
 * while getting close to theoretically resource optimal results.
 
 A high-level desired workflow would permit us to:
+
 1. Load tensor data into tapestry: <img src="/Tapestry/tapestry.basic.load.svg" width="300"/>
 2. Inject and apply an operation, transforming existing tensors into new tensors:
    <img src="/Tapestry/tapestry.basic.apply.svg" width="300"/>
@@ -95,13 +133,17 @@ knowledge about the tapestry layout.
 
 Many environments exist for flat-mapped collections, for data that is structured
 in lists, arrays, or key/value mapped dictionaries:
+
 * [Apache Spark](https://spark.apache.org/)
 * [Google Dataflow](https://cloud.google.com/dataflow)
 
 These environments do not model tensor-indexed values, or have effective
 mechanisms for distributing dataflow and functional dependencies across
-polyhedrally typed operations; a new formalism is needed to effectively
+polyhedrally typed operations (operations typed in terms of the shape
+co-variance of their inputs and outputs); a new formalism is needed to effectively
 describe operator injection into distributed tensor environments.
+
+<!-- TODO: image / explanation for polyhedrally typed functions -->
 
 Tapestry is an effort to describe such a formalism, focusing on shardable by construction
 operation graph semantics.
@@ -169,7 +211,6 @@ so I'm taking a first-principles formal language design route.
 * We will have some trouble acquiring people to help; everything is going to
   appear *very* abstract until the functional machinery is in-place.
 
-
 ## Stages
 
 *Tapestry* will be built out in the following stages of work, which correspond to a series
@@ -191,6 +232,7 @@ When this stack is *semantically* complete, even in a preview form; we can begin
 preview applications written in the block operation graph language.
 
 From this stage onward, development will bifurcate:
+
 * Applications and extensions written *above* the block operation language; and
 * Optimization research and operational implementation work done *below* the block operation language.
 
@@ -215,14 +257,15 @@ and I've done a fair amount of background work on large transform environments.
 # The Distributed Tensor Expression Problem
 
 The tensor evaluation language problem:
+
 ```
 A, B, X, Y: Tensor
 Y = f(A, B)
 Z = g(X, Y)
 ```
-  * Given an arbitrarily large tensor-valued operator expression;
-    how do we efficiently schedule the expression over large numbers of GPUs?
 
+* Given an arbitrarily large tensor-valued operator expression;
+  how do we efficiently schedule the expression over large numbers of GPUs?
 
 Much of the existing work in this space has focused upon scaling programs written
 in existing tensor expression languages (`pytorch`, `tensorflow`, `numpy`);
@@ -235,12 +278,12 @@ incremental improvements have direct impact on the ability to train and deploy e
 applications.
 
 However, quite a few pieces of the current system pose problems for these *smart* compilers:
+
 * the existing APIs have many entry points;
 * the entry points don't all follow consistent semantics;
 * the apis were not written to enforce a stable co-variance between parameters and results;
 * the tensor APIs are data/shape polymorphic;
 * and python itself is obnoxious to trace symbolically
-
 
 If, as an exercise, we drop any notion of compatibility with existing `numpy`-derived
 apis; I'm interested in the question of how far we can get?
@@ -271,8 +314,10 @@ X, W, b, Z: Tensor
 Z = Linear(X, W, b)
 Y = ReLU(Z)
 ```
+
 At this point there are no formal semantics for $Expr$; we're searching design space
 for formal semantics such that:
+
 1. Common operations in AI can be represented in the semantics;
 2. $Expr$ can be sharded to a distributed GPU fabric using existing optimization theory.
 
@@ -284,6 +329,7 @@ is only a sketch towards a language, we can explore restrictions to $Expr$ which
 embedding.
 
 Consider one functional dependency interpretation of our toy example:
+
 ```graphviz
 digraph D {
     rankdir=LR;
@@ -311,35 +357,34 @@ we can show that the operation can be cleanly sharded along any batch dimensions
 
 $$\begin{eqnarray\*}
 \left\\{ \begin{split}
-    Z &= Linear(X, W, b) \\\\
-    Y &= ReLU(Z)
+Z &= Linear(X, W, b) \\\\
+Y &= ReLU(Z)
 \end{split} \right\\}
 %
 & \rightarrow_{shard(X)} &
 %
 \left\\{ \begin{split}
-    Z &= \left( \begin{split}
-        Linear(X[..k , ...], W, b) \\\\
-        Linear(X[k.. , ...], W, b)
-    \end{split} \right) \\\\
-    Y &= ReLU(Z)
+Z &= \left( \begin{split}
+Linear(X[..k , ...], W, b) \\\\
+Linear(X[k.. , ...], W, b)
+\end{split} \right) \\\\
+Y &= ReLU(Z)
 \end{split} \right\\} \\\\ \\\\
 %
 &\rightarrow_{shard(Z)}& \quad
 %
 \left\\{ \begin{split}
-    X_1 &= X[.. k, ...] \\\\
-    X_2 &= X[k .., ...] \\\\
-    Z_1 &= Linear(X_1, W, b) \\\\
-    Z_2 &= Linear(X_2, W, b) \\\\
-    Z &= \left( \begin{split}
-        Z_1 \\\\
-        Z_2
-    \end{split} \right) \\\\
-    Y &= ReLU(Z)
+X_1 &= X[.. k, ...] \\\\
+X_2 &= X[k .., ...] \\\\
+Z_1 &= Linear(X_1, W, b) \\\\
+Z_2 &= Linear(X_2, W, b) \\\\
+Z &= \left( \begin{split}
+Z_1 \\\\
+Z_2
+\end{split} \right) \\\\
+Y &= ReLU(Z)
 \end{split} \right\\} \\\\ \\\\
 \end{eqnarray\*}$$
-
 
 ```graphviz
 digraph D {
@@ -385,43 +430,42 @@ We know that we can also re-write $ReLU$ expressions upon the batch dimensions:
 
 $$\begin{eqnarray\*}
 \left\\{ \begin{split}
-    X_1 &= X[.. k, ...] \\\\
-    X_2 &= X[k .., ...] \\\\
-    Z_1 &= Linear(X_1, W, b) \\\\
-    Z_2 &= Linear(X_2, W, b) \\\\
-    Z &= \left( \begin{split} Z_1 \\\\ Z_2 \end{split} \right) \\\\
-    Y &= ReLU(Z)
+X_1 &= X[.. k, ...] \\\\
+X_2 &= X[k .., ...] \\\\
+Z_1 &= Linear(X_1, W, b) \\\\
+Z_2 &= Linear(X_2, W, b) \\\\
+Z &= \left( \begin{split} Z_1 \\\\ Z_2 \end{split} \right) \\\\
+Y &= ReLU(Z)
 \end{split} \right\\}
 %
 & \rightarrow_{forward(Z)} &
 %
 \left\\{ \begin{split}
-    X_1 &= X[.. k, ...] \\\\
-    X_2 &= X[k .., ...] \\\\
-    Z_1 &= Linear(X_1, W, b) \\\\
-    Z_2 &= Linear(X_2, W, b) \\\\
-    Y &= \left( \begin{split}
-        ReLU(Z_1) \\\\
-        ReLU(Z_2)
-    \end{split} \right)
+X_1 &= X[.. k, ...] \\\\
+X_2 &= X[k .., ...] \\\\
+Z_1 &= Linear(X_1, W, b) \\\\
+Z_2 &= Linear(X_2, W, b) \\\\
+Y &= \left( \begin{split}
+ReLU(Z_1) \\\\
+ReLU(Z_2)
+\end{split} \right)
 \end{split} \right\\} \\\\ \\\\
 %
 & \rightarrow_{shard(Y)} &
 %
 \left\\{ \begin{split}
-    X_1 &= X[.. k, ...] \\\\
-    X_2 &= X[k .., ...] \\\\
-    Z_1 &= Linear(X_1, W, b) \\\\
-    Z_2 &= Linear(X_2, W, b) \\\\
-    Y_1 &= ReLU(Z_1) \\\\
-    Y_2 &= ReLU(Z_2) \\\\
-    Y &= \left( \begin{split}
-        Y_1 \\\\
-        Y_2
-    \end{split} \right) \\\\
+X_1 &= X[.. k, ...] \\\\
+X_2 &= X[k .., ...] \\\\
+Z_1 &= Linear(X_1, W, b) \\\\
+Z_2 &= Linear(X_2, W, b) \\\\
+Y_1 &= ReLU(Z_1) \\\\
+Y_2 &= ReLU(Z_2) \\\\
+Y &= \left( \begin{split}
+Y_1 \\\\
+Y_2
+\end{split} \right) \\\\
 \end{split} \right\\}
 \end{eqnarray\*}$$
-
 
 ```graphviz
 digraph D {
@@ -468,45 +512,44 @@ into the combined $Linear \Rightarrow ReLU$ operation, and collapse the shards:
 
 $$\begin{eqnarray\*}
 \left\\{ \begin{split}
-    X_1 &= X[.. k, ...] \\\\
-    X_2 &= X[k .., ...] \\\\
-    Z_1 &= Linear(X_1, W, b) \\\\
-    Z_2 &= Linear(X_2, W, b) \\\\
-    Y_1 &= ReLU(Z_1) \\\\
-    Y_2 &= ReLU(Z_2) \\\\
-    Y &= \left( \begin{split}
-        Y_1 \\\\
-        Y_2
-    \end{split} \right)
+X_1 &= X[.. k, ...] \\\\
+X_2 &= X[k .., ...] \\\\
+Z_1 &= Linear(X_1, W, b) \\\\
+Z_2 &= Linear(X_2, W, b) \\\\
+Y_1 &= ReLU(Z_1) \\\\
+Y_2 &= ReLU(Z_2) \\\\
+Y &= \left( \begin{split}
+Y_1 \\\\
+Y_2
+\end{split} \right)
 \end{split} \right\\}
 %
 & \rightarrow_{compose(Linear, ReLU)} &
 %
 \left\\{ \begin{split}
-    X_1 &= X[.. k, ...] \\\\
-    X_2 &= X[k .., ...] \\\\
-    Y_1 &= ReLU(Linear(X_1, W, B)) \\\\
-    Y_2 &= ReLU(Linear(X_2, W, B)) \\\\
-    Y &= \left( \begin{split}
-        Y_1 \\\\
-        Y_2
-    \end{split} \right)
+X_1 &= X[.. k, ...] \\\\
+X_2 &= X[k .., ...] \\\\
+Y_1 &= ReLU(Linear(X_1, W, B)) \\\\
+Y_2 &= ReLU(Linear(X_2, W, B)) \\\\
+Y &= \left( \begin{split}
+Y_1 \\\\
+Y_2
+\end{split} \right)
 \end{split} \right\\} \\\\ \\\\
 %
 & \rightarrow_{fuse(Linear, ReLU)} &
 %
 \left\\{ \begin{split}
-    X_1 &= X[.. k, ...] \\\\
-    X_2 &= X[k .., ...] \\\\
-    Y_1 &= (Linear \Rightarrow ReLU)(X_1, W, b) \\\\
-    Y_2 &= (Linear \Rightarrow ReLU)(X_2, W, b) \\\\
-    Y &= \left( \begin{split}
-        Y_1 \\\\
-        Y_2
-    \end{split} \right)
+X_1 &= X[.. k, ...] \\\\
+X_2 &= X[k .., ...] \\\\
+Y_1 &= (Linear \Rightarrow ReLU)(X_1, W, b) \\\\
+Y_2 &= (Linear \Rightarrow ReLU)(X_2, W, b) \\\\
+Y &= \left( \begin{split}
+Y_1 \\\\
+Y_2
+\end{split} \right)
 \end{split} \right\\} \\\\ \\\\
 \end{eqnarray\*}$$
-
 
 ```graphviz
 digraph D {
@@ -558,6 +601,7 @@ expression graphs.
   this property.
 
 For any given $Operator$, we need additional information:
+
 * Given the shapes of the parameters, what are the expected shapes of the results?
 * Given the shapes of the parameters, what independent shards are possible which can be
   fused back into the same results?
@@ -566,6 +610,7 @@ For any given $Operator$, we need additional information:
 But we also need to ensure that connective expression language between operators has the same properties.
 
 Recall the toy tensor expression in $Expr$:
+
 ```
 X, W, b, Z: Tensor
 Z = Linear(X, W, b)
@@ -590,6 +635,7 @@ Let $Operator$ be a block-operation, taking *tensor*-valued inputs, and producin
 
 As discussed previously, we're attempting to find a family of $Operators$ such that,
 for any given $Operator$, we'll have additional information:
+
 * Given the shapes of the parameters, what are the expected shapes of the results?
 * Given the shapes of the parameters, what independent shards are possible which can be
   fused back into the same results?
@@ -931,14 +977,17 @@ digraph G {
 # Operator Index Counting
 
 Crucially, the goal is to be able to shard:
+
 * *With* a strong ability to predict execution costs before evaluation; and
 * *Without* examining anything about the implementation of $Operator$.
 
 This can be reframed as a counting problem:
+
 * Can we enumerate all simple sub-problems of a given call to $Operator$?
 
 To make this concrete, let's reconsider $Linear$ from above. If we add an $index$ space
 to count all sub-problems of $Linear$:
+
 * What is the shape of $index$?
     * How many dimensions does $index$ have?
     * What are their sizes?
@@ -1088,6 +1137,7 @@ and re-assemble the results.
 It is important to state that the top-down approach (starting with an $Operator$, find sharding)
 is a potentially intractable problem; while the bottom-up approach (starting with sharding, define
 $Operator$s) is solvable by construction (but limited to findable constructions):
+
 * Top-Down: Given this $Operator$, can I find projection functions $P_T(i)$?
 * Bottom-Up: Given a menagerie of known projection functions $P_T(i)$,
   what $Operators$ can I construct?
@@ -1103,6 +1153,7 @@ and an approach that's also been incorporated into the [MLIR](https://mlir.llvm.
 project's [Polyhedral Types](https://mlir.llvm.org/docs/Dialects/Affine/).
 
 What components make up an affine projection function?:
+
 * an affine expression mapping points in $index$ space to starts in the coordinate space of input/output tensors;
 * a fixed $shape$ defining the shape of region selected relative to the mapped point.
 
@@ -1144,9 +1195,9 @@ $X: [batch, in]$, $W: [in, out]$, $b: [out]$, $Y: [batch, out]$:
 
 > 📝 Note: Careful readers may note that while $W$ and $b$ are frequently tied to a model
 (and thus have a fixed size); $batch$ could be a stand-in not only for an
-arbitrarily sized input $X$ (and thus an arbitrarily sized output $Y$);
-but that we could model it as having an arbitrary number of dimensions; the
-math of which are simple extensions.
+> arbitrarily sized input $X$ (and thus an arbitrarily sized output $Y$);
+> but that we could model it as having an arbitrary number of dimensions; the
+> math of which are simple extensions.
 
 ```graphviz
 digraph G {
@@ -2587,24 +2638,24 @@ broadcasting operations; all tensor libraries have a host of features,
 some more convenient than others.
 
 ```python
->>> import torch
->>> batch = 10
->>> input = 2
->>> output = 3
+>> > import torch
+>> > batch = 10
+>> > input = 2
+>> > output = 3
 
->>> x = torch.rand((batch, input)
->>> x.shape
+>> > x = torch.rand((batch, input)
+                    >> > x.shape
 torch.Size([10, 2]))
->>> x.unsqueeze(-1).shape
+>> > x.unsqueeze(-1).shape
 torch.Size([10, 2, 1])
 
->>> w = torch.rand((input, output))
->>> w.shape
+>> > w = torch.rand((input, output))
+>> > w.shape
 torch.Size([2, 3]))
->>> w.unsqueeze(0).shape
+>> > w.unsqueeze(0).shape
 torch.Size([1, 2, 3])
 
->>> (x.unsqueeze(-1) * w.unsqueeze(0)).shape
+>> > (x.unsqueeze(-1) * w.unsqueeze(0)).shape
 torch.Size([10, 2, 3])
 ```
 
@@ -2726,7 +2777,6 @@ digraph G {
 
 > 📝 Note: careful readers may note that this involves the same input
 > data being read by multiple output cells.
-
 
 ## Reduction Operations
 
