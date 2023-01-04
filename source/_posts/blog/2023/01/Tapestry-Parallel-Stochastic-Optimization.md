@@ -6,6 +6,9 @@ mathjax: true
 date: 2023-01-04 13:48:03
 ---
 
+This post develops part of this document:
+* [Tapestry: Shardable Tensor Expression Languages](/Tapestry)
+
 
 ## Parallel Stochastic Optimization
 
