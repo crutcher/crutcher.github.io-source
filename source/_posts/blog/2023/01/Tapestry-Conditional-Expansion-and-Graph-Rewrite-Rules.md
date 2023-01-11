@@ -757,3 +757,10 @@ This approach can be made more powerful when high-level operators are designed b
 api designers in terms of the known family of fusion operators and rewrite
 operations; leading to potentially large wins in fusion optimization search
 results.
+
+## Next
+
+The next focus will be on developing the mechanics to show that the
+sharding of convolution operators can be cleanly expressed in index projection functions
+and graph rewrite rules; and beginning to discuss implicit tensor view, shard, and fusion
+operators.

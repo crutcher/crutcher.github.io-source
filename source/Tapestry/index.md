@@ -4752,6 +4752,7 @@ cost model.
 Say, we're currently seeing a 5% improvement every 1000 trials of the optimization
 search? When should we stop looking for a better answer? An optimal choice
 depends on:
+
 * how expensive are the optimization trials?
 * how valuable is that 5% reduction in the optimized graph schedule?
 
@@ -4764,18 +4765,8 @@ the target optimization time should probably be a great deal shorter.
 
 ## Next
 
-The full decomposition of $Linear$ provides a pathway to sharding potentially large operations,
-at the cost of decomposing operations which can be represented by highly space and time
-efficient kernel implementations when they are not decomposed.
-
-Were we able to select between this decomposition, when $in$ was large enough to require
-sharding, and the block representation of $Linear$, when $in$ fit within our execution
-boundaries; we'd have a flexible mechanism to handle both large and small cases.
-
-Decorating operators with re-write production rules will be developed in future
-work in this series.
-
-Sharding $Linear$ over the $W_{in}$ dimension is more complex, as it requires sharding a
-reduce operation; which breaks our current block model; as a preview for a future post,
-we can see that this can be rewritten as a $sum$ reduction:
+The next focus will be on developing the mechanics to show that the
+sharding of convolution operators can be cleanly expressed in index projection functions
+and graph rewrite rules; and beginning to discuss implicit tensor view, shard, and fusion
+operators.
 
