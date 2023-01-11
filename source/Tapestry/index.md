@@ -5,11 +5,35 @@ tags: ["tensor expressions", "tapestry"]
 mathjax: true
 ---
 
+<p style="text-align: center;">Author: Crutcher Dunnavant &lt;crutcher@gmail.com&gt;</p>
+
 <img src="/Tapestry/tapestry.pastel.svg" width="200"/>
 
-## Abstract
+## Progress
 
 > Note: Document Completion Progress ~= 5%
+
+This is an in-progress work, to define the background material and theory for an
+optimizing tensor expression compilation and evaluation toolchain;
+As such, it's incomplete; and will grow as I expand and firm up the representation
+of the ideas. This section exists as a rough guide to the active work edges
+in the document as it stands.
+
+Major next-steps in the work exist along these axes:
+
+* Sharding Theory - sections deriving sharding theory from principles.
+  * Describe the theory for sharding $Conv$ / convolution operators.
+  * Describe tensor view / slice / fusion structure operators.
+* Rewrite Theory - sections deriving rewrite pattern theory from principles.
+  * Describe theory for graph rewrite matching.
+* Mechanics - sections describing implementation choices.
+  * Formal Operator Semantics - describing a formal representation
+    consistent with the derived theory.
+  * Formal Rewrite Semantics - describing a formal representation
+    consistent with the derived theory.
+
+
+## Abstract
 
 This document represents my living attempt to describe work I'm doing in research
 on the design and implementation of shardable tensor expression languages. It's going
@@ -4762,11 +4786,4 @@ if doing so reliably reduces the long term utilization.
 
 However, when targeting jobs which should take 5 machines 20 minutes;
 the target optimization time should probably be a great deal shorter.
-
-## Next
-
-The next focus will be on developing the mechanics to show that the
-sharding of convolution operators can be cleanly expressed in index projection functions
-and graph rewrite rules; and beginning to discuss implicit tensor view, shard, and fusion
-operators.
 
