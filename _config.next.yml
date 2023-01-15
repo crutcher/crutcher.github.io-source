@@ -1,6 +1,9 @@
 scheme: Gemini
 darkmode: true
 
+back2top:
+  enable: false
+
 post_navigation: true
 
 google_analytics:

@@ -117,6 +117,12 @@ ignore:
 
 
 # https://github.com/next-theme/hexo-filter-mathjax
+#
+# Note:
+# Always force $$\begin{eqnarray\*}<expr>\end{eqnarray\*}$$
+# To prevent generating eqn labels, because this breaks
+# mobile rendering:
+#   https://github:com/next-theme/hexo-filter-mathjax#known-issues
 mathjax:
   tags: all
   packages: [ "relsize" ]

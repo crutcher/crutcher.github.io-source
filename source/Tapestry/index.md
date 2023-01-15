@@ -372,9 +372,9 @@ Taking motivation from the toy example; we'd like to be able to shard the $Linea
 The operation is intended as a stand-in for the fully-connected linear layer operation from
 neural networks:
 
-$$
+$$\begin{eqnarray\*}
 Linear(X_{[batch,in]}, W_{[in,out]}, b_{[out]}) := X \times W + b
-$$
+\end{eqnarray\*}$$
 
 By examining the implementation of $Linear$, and assuming that $X$ has shape $[batch, in]$ ,
 we can show that the operation can be cleanly sharded along any batch dimensions of the input $X$:
@@ -446,9 +446,9 @@ digraph D {
 
 By exploiting our knowledge of the implementation of $ReLU$:
 
-$$
+$$\begin{eqnarray\*}
 ReLU(Z) := Z \circ [Z > 0]
-$$
+\end{eqnarray\*}$$
 
 We know that we can also re-write $ReLU$ expressions upon the batch dimensions:
 
@@ -1183,9 +1183,9 @@ What components make up an affine projection function?:
 
 The simplest representation of this is a simple affine transform + a shape:
 
-$$
+$$\begin{eqnarray\*}
 P_T(i) := ZRange(start: A_T i + B_T, shape: S_T)
-$$
+\end{eqnarray\*}$$
 
 Are affine expressions the *right* or *best* solution to te design of projection functions?
 We don't know; affine expressions can only be compared to other proposals, not
@@ -1209,9 +1209,9 @@ but some of the implications can be complex to unpack. We'll explore a few here.
 
 Consider $Linear$ again:
 
-$$
+$$\begin{eqnarray\*}
 Linear(X_{[batch,in]}, W_{[in,out]}, b_{[out]}) := X \times W + b
-$$
+\end{eqnarray\*}$$
 
 In order to discuss projection functions, we need to extract the dimensions
 of the tensors under discussion; let's assume
@@ -1813,9 +1813,9 @@ digraph G {
 
 ### Sharding Linear over the out dimension
 
-$$
+$$\begin{eqnarray\*}
 Linear(X, W, b) := X \times W + b
-$$
+\end{eqnarray\*}$$
 
 We'll now consider the projection functions $P_W(i)$, $P_b(i)$, and $P_Y(i)$;
 and how we'll handle batching over `out` dimensions:
@@ -2501,30 +2501,28 @@ digraph G {
 Previously we developed affine projection sharding over the $batch$ and $out$ dimensions of a tensor-valued $Linear$
 operation, assuming dimensions: $X: [batch, in]$, $W: [in, out]$, $b: [out]$, $Y: [batch, out]$:
 
-$$
+$$\begin{eqnarray\*}
 Linear(X_{[batch,in]}, W_{[in,out]}, b_{[out]})_{[batch,out]} := X \times W + b
-$$
+\end{eqnarray\*}$$
 
 To examine sharding over the $in$ dimension, we'll need to focus on the nature of the matrix multiplication
 operation, and discuss $Matmul$ and $Sum$ operations.
 
-$$
-\begin{eqnarray}
+$$\begin{eqnarray\*}
 Matmul(X_{[batch,in]}, W_{[in,out]})_{[batch,out]} &:=& X \times W \\\\
 Sum(A\_{[...]}, B\_{[...]})\_{[...]} &:=& A + B
-\end{eqnarray}
-$$
+\end{eqnarray\*}$$
 
 What's important here is that, while $Matmul$ is linearly shardable in its $batch$ and $out$ dimensions,
 it contains an implicit reduce sum reduction operation in its $input$ dimension.
 
-$$
+$$\begin{eqnarray\*}
 Matmul(X_{[batch,in]}, W_{[in,out]}) := \left(
 \begin{split}
 \left\\{\sum_{in=1}^n x_{batch,in}w_{in,out}\right\\}_{batch,out} &\qquad& ... \\\\
 ... &\qquad& ...
 \end{split} \right)
-$$
+\end{eqnarray\*}$$
 
 > 📝 Note: careful readers may note that there exists a large body of work dedicated to the question of
 > how to implement $Matmul$ more efficiently. The point of this exercise is to use $Linear$ and $Matmul$
@@ -2538,9 +2536,9 @@ $$
 
 Returning to $Linear$, we can rewrite $Linear$ as a composition of $Matmul$ and $Sum$:
 
-$$
+$$\begin{eqnarray\*}
 Linear(X_{[batch,in]}, W_{[in,out]}, b_{[out]})_{[batch,out]} := Sum(Matuml(X, W), b)
-$$
+\end{eqnarray\*}$$
 
 Applying this re-write would restructure our expression graph from this:
 
@@ -2587,23 +2585,21 @@ and the cell-wise product operation ($\cdot$); and generate an intermediate prod
 To do this, we need to extend and broadcast $X$ and $W$ to the combined shape $[batch,in,out]$,
 to produce an intermediate result $V$:
 
-$$
+$$\begin{eqnarray\*}
 V := (X\_{[batch,in,1]} \cdot W\_{[1,in,out]})\_{[batch,in,out]}
-$$
+\end{eqnarray\*}$$
 
 And we need to introduce a new operator $SumDim(T, dim)$ which sums along and removes one dim of $T$.
 
 We can now define $Matmul$ in terms of this intermediate result, and $SumDim$
 
-$$
-\begin{eqnarray}
+$$\begin{eqnarray\*}
 Matmul(X_{[batch,in]}, W_{[in,out]})_{[batch,out]} &:=& X\_{[batch,in]} \times W\_{[in,out]\} \\\\
 &=& SumDim \left( \begin{split}
 (X\_{[batch,in,1]} \times W\_{[1,in,out]})\_{[batch,in,out]}, \\\\
 dim = \langle in \rangle
 \end{split} \right)
-\end{eqnarray}
-$$
+\end{eqnarray\*}$$
 
 This decomposition yields the following expression graph:
 
@@ -2634,27 +2630,25 @@ before, but a *reduction operation*.
 Consider $Prod$; a simple cell-wise multiplication. We expect the output
 to have the same shape and dimensions as the input:
 
-$$
-\begin{eqnarray}
+$$\begin{eqnarray\*}
 Prod(A\_{[...]\}, B\_{[...]})\_{[...]} &:=& A \cdot B \\\\
 Prod(A\_{[m,n,o]}, B\_{[m,n,o]})\_{[m,n,o]} &:=& \left( \begin{split}
 (a\_{m,n,o} \cdot b\_{m,n,o}) &\qquad& ... \\\\
 ... &\qquad& ...
 \end{split} \right)
-\end{eqnarray}
-$$
+\end{eqnarray\*}$$
 
 To achieve this in tensor operations over inputs where the shapes are not initially the
 same, but can be manipulated to be the same; it's common to use *broadcasting*; to
 treat any dimension which is $1$ for one input, but non $1$ for another input
 as though it were broadcast or spread to cover the size of the other:
 
-$$
+$$\begin{eqnarray\*}
 Prod(A\_{[1,n,o]}, B\_{[m,1,o]})\_{[m,n,o]} := \left( \begin{split}
 (a\_{1,n,o} \cdot b\_{m,1,o}) &\qquad& ... \\\\
 ... &\qquad& ...
 \end{split} \right)
-$$
+\end{eqnarray\*}$$
 
 It is also common in tensor operations to perform various permutations,
 transpositions, and reversals to achieve appropriate alignment for
