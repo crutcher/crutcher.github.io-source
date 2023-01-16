@@ -9,7 +9,7 @@ date: 2022-12-19 15:02:02
 
 
 This post develops part of this document:
-  * [Tapestry: Shardable Tensor Expression Languages](/Tapestry)
+* [Tapestry: Shardable Tensor Expression Environments](/Tapestry)
 
 # The Tapestry Plan
 

@@ -5,10 +5,8 @@ tags: ["tensor expressions", "tapestry"]
 mathjax: true
 ---
 
-### Series
-
 This post develops part of this document:
-    * [Tapestry: Shardable Tensor Expression Languages](/Tapestry)
+* [Tapestry: Shardable Tensor Expression Environments](/Tapestry)
 
 This post explores *Index Projection Functions*; as a pathway to developing a tensor
 expression evaluation environment:
@@ -562,9 +560,9 @@ What components make up an affine projection function?:
 
 The simplest representation of this is a simple affine transform + a shape:
 
-$$
+$$\begin{eqnarray\*}
 P_T(i) := ZRange(start: A_T i + B_T, shape: S_T)
-$$
+\end{eqnarray\*}$$
 
 Are affine expressions the *right* or *best* solution to te design of projection functions?
 We don't know; affine expressions can only be compared to other proposals, not

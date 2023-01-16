@@ -7,9 +7,8 @@ mathjax: true
 date: 2022-12-28 08:35:27
 ---
 
-
 This post develops part of this document:
-   * [Tapestry: Shardable Tensor Expression Languages](/Tapestry)
+* [Tapestry: Shardable Tensor Expression Environments](/Tapestry)
 
 # Sharding $Linear$, and $Matmul$, over the `in` dimension
 
@@ -18,30 +17,28 @@ and [Sharding Linear Operations over Weight Out Dimensions](/2022/12/17/Sharding
 we developed affine projection sharding over the $batch$ and $out$ dimensions of a tensor-valued $Linear$ operaton,
 assuming dimensions: $X: [batch, in]$, $W: [in, out]$, $b: [out]$, $Y: [batch, out]$:
 
-$$
+$$\begin{eqnarray\*}
 Linear(X_{[batch,in]}, W_{[in,out]}, b_{[out]})_{[batch,out]} := X \times W + b
-$$
+\end{eqnarray\*}$$
 
 To examine sharding over the $in$ dimension, we'll need to focus on the nature of the matrix multiplication
 operation, and discuss $Matmul$ and $Sum$ operations.
 
-$$
-\begin{eqnarray}
+$$\begin{eqnarray\*}
 Matmul(X_{[batch,in]}, W_{[in,out]})_{[batch,out]} &:=& X \times W \\\\
 Sum(A\_{[...]}, B\_{[...]})\_{[...]} &:=& A + B
-\end{eqnarray}
-$$
+\end{eqnarray\*}$$
 
 What's important here is that, while $Matmul$ is linearly shardable in its $batch$ and $out$ dimensions,
 it contains an implicit reduce sum reduction operation in its $input$ dimension.
 
-$$
+$$\begin{eqnarray\*}
 Matmul(X_{[batch,in]}, W_{[in,out]}) := \left(
 \begin{split}
 \left\\{\sum_{in=1}^n x_{batch,in}w_{in,out}\right\\}_{batch,out} &\qquad& ... \\\\
 ... &\qquad& ...
 \end{split} \right)
-$$
+\end{eqnarray\*}$$
 
 > 📝 Note: careful readers may note that there exists a large body of work dedicated to the question of
 > how to implement $Matmul$ more efficiently. The point of this exercise is to use $Linear$ and $Matmul$
@@ -55,9 +52,9 @@ $$
 
 Returning to $Linear$, we can rewrite $Linear$ as a composition of $Matmul$ and $Sum$:
 
-$$
+$$\begin{eqnarray\*}
 Linear(X_{[batch,in]}, W_{[in,out]}, b_{[out]})_{[batch,out]} := Sum(Matuml(X, W), b)
-$$
+\end{eqnarray\*}$$
 
 Applying this re-write would restructure our expression graph from this:
 
@@ -104,23 +101,21 @@ and the cell-wise product operation ($\cdot$); and generate an intermediate prod
 To do this, we need to extend and broadcast $X$ and $W$ to the combined shape $[batch,in,out]$,
 to produce an intermediate result $V$:
 
-$$
+$$\begin{eqnarray\*}
 V := (X\_{[batch,in,1]} \cdot W\_{[1,in,out]})\_{[batch,in,out]}
-$$
+\end{eqnarray\*}$$
 
 And we need to introduce a new operator $SumDim(T, dim)$ which sums along and removes one dim of $T$.
 
 We can now define $Matmul$ in terms of this intermediate result, and $SumDim$
 
-$$
-\begin{eqnarray}
+$$\begin{eqnarray\*}
 Matmul(X_{[batch,in]}, W_{[in,out]})_{[batch,out]} &:=& X\_{[batch,in]} \times W\_{[in,out]\} \\\\
 &=& SumDim \left( \begin{split}
 (X\_{[batch,in,1]} \times W\_{[1,in,out]})\_{[batch,in,out]}, \\\\
 dim = \langle in \rangle
 \end{split} \right)
-\end{eqnarray}
-$$
+\end{eqnarray\*}$$
 
 This decomposition yields the following expression graph:
 
@@ -151,27 +146,25 @@ before, but a *reduction operation*.
 Consider $Prod$; a simple cell-wise multiplication. We expect the output
 to have the same shape and dimensions as the input:
 
-$$
-\begin{eqnarray}
+$$\begin{eqnarray\*}
 Prod(A\_{[...]\}, B\_{[...]})\_{[...]} &:=& A \cdot B \\\\
 Prod(A\_{[m,n,o]}, B\_{[m,n,o]})\_{[m,n,o]} &:=& \left( \begin{split}
 (a\_{m,n,o} \cdot b\_{m,n,o}) &\qquad& ... \\\\
 ... &\qquad& ...
 \end{split} \right)
-\end{eqnarray}
-$$
+\end{eqnarray\*}$$
 
 To achieve this in tensor operations over inputs where the shapes are not initially the
 same, but can be manipulated to be the same; it's common to use *broadcasting*; to
 treat any dimension which is $1$ for one input, but non $1$ for another input
 as though it were broadcast or spread to cover the size of the other:
 
-$$
+$$\begin{eqnarry\*}
 Prod(A\_{[1,n,o]}, B\_{[m,1,o]})\_{[m,n,o]} := \left( \begin{split}
 (a\_{1,n,o} \cdot b\_{m,1,o}) &\qquad& ... \\\\
 ... &\qquad& ...
 \end{split} \right)
-$$
+\end{eqnarray\*}$$
 
 It is also common in tensor operations to perform various permutations,
 transpositions, and reversals to achieve appropriate alignment for
@@ -424,7 +417,7 @@ and commutative); such that we can re-order and regroup it as we see fit:
 $$\begin{eqnarray\*}
 a \oplus b \oplus c \oplus d &=& (a \oplus b) \oplus (c \oplus d) \\\\
 &=& (c \oplus d) \oplus (a \oplus b)
-\end{eqnarray\*} $$
+\end{eqnarray\*}$$
 
 Any operation with this property, no matter what the implementation is doing,
 permits us to mechanically rewrite evaluation order.
@@ -870,9 +863,9 @@ digraph G {
 
 Putting this together with the definition of $Linear$,
 
-$$ \begin{eqnarray\*}
+$$\begin{eqnarray\*}
 Linear(X_{[batch,in]}, W_{[in,out]}, b_{[out]})_{[batch,out]} := X \times W + b
-\end{eqnarray\*} $$
+\end{eqnarray\*}$$
 
 We can now express $Linear$ as a form of high-level reduction operation,
 over the $batch$, $in$, and $out$ dimensions:

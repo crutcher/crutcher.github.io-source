@@ -5,10 +5,9 @@ tags: ["tensor expressions", "tapestry"]
 mathjax: true
 ---
 
-### Series
-
 This post develops part of this document:
-    * [Tapestry: Shardable Tensor Expression Languages](/Tapestry)
+* [Tapestry: Shardable Tensor Expression Environments](/Tapestry)
+
 
 # The Distributed Tensor Expression Problem
 
@@ -82,9 +81,9 @@ Taking motivation from the toy example; we'd like to be able to shard the $Linea
 The operation is intended as a stand-in for the fully-connected linear layer operation from
 neural networks:
 
-$$
+$$\begin{eqnarray\*}
 Linear(X, W, b) := X \cdot W + b
-$$
+\end{eqnarray\*}$$
 
 By examining the implementation of $Linear$, and assuming that $X$ has shape $[batch, in]$ ,
 we can show that the operation can be cleanly sharded along any batch dimensions of the input $X$:
@@ -150,9 +149,9 @@ digraph D {
 
 By exploiting our knowledge of the implementation of $ReLU$:
 
-$$
+$$\begin{eqnarray\*}
 ReLU(Z) := Z \circ [Z > 0]
-$$
+\end{eqnarray\*}$$
 
 We know that we can also re-write $ReLU$ expressions upon the batch dimensions:
 
