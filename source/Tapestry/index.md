@@ -278,7 +278,15 @@ and I've done a fair amount of background work on large transform environments.
 * [MLIR Polyhedral Types](https://mlir.llvm.org/docs/Dialects/Affine/)
     - the current LLVM work on polyhedral types for MLIR.
 
-## The Distributed Tensor Expression Problem
+## Evaluation Theory Derivation
+
+The Evaluation Theory Derivation section will focus on incrementally unfolding and deriving a bottom-up theory
+of operator evaluation and sharding from first principles.
+
+An as-yet-unwritten section on Formal Semantics will present the same material as a completed
+top-down design; followed on a Mechanics section on implementing the Formal Semantics.
+
+### The Distributed Tensor Expression Problem
 
 The tensor evaluation language problem:
 
@@ -312,7 +320,7 @@ However, quite a few pieces of the current system pose problems for these *smart
 If, as an exercise, we drop any notion of compatibility with existing `numpy`-derived
 apis; I'm interested in the question of how far we can get?
 
-### Expanding a Toy Example
+#### Expanding a Toy Example
 
 Designing new evaluation languages requires that we work backwards from informal semantics
 (things *similar* to things we want to be able to say) and operational requirements
@@ -610,7 +618,7 @@ digraph D {
 These series of transformations are possible because we know (or assume) details about
 the structural co-variance of the inputs and outputs to the operations $Linear$ and $ReLU$.
 
-## Restricting to Shardable Operators
+### Restricting to Shardable Operators
 
 We cannot assume that any arbitrary operation from a collection of named tensors (the parameters)
 to a collection of named tensors (the results) will have cleanly explicable structural co-variance
@@ -998,7 +1006,7 @@ digraph G {
 }
 ```
 
-## Operator Index Counting
+### Operator Index Counting
 
 Crucially, the goal is to be able to shard:
 
@@ -1166,7 +1174,7 @@ $Operator$s) is solvable by construction (but limited to findable constructions)
 * Bottom-Up: Given a menagerie of known projection functions $P_T(i)$,
   what $Operators$ can I construct?
 
-## Affine Projection Functions
+### Affine Projection Functions
 
 One design approach for solving the $P_T(i)$ projection design problem is the use of
 coordinate space (integer, $\mathbb{Z}$) affine transforms (linear projections) from the index space
@@ -1205,7 +1213,7 @@ particularly in the face of shared input (as with convolution operations).
 As with many matrix transform operations, the basic definitions are simple;
 but some of the implications can be complex to unpack. We'll explore a few here.
 
-### Linear Strides Over a Batch Dimension
+#### Linear Strides Over a Batch Dimension
 
 Consider $Linear$ again:
 
@@ -1811,7 +1819,7 @@ digraph G {
 }
 ```
 
-### Sharding Linear over the out dimension
+#### Sharding Linear over the out dimension
 
 $$\begin{eqnarray\*}
 Linear(X, W, b) := X \times W + b
@@ -2496,7 +2504,7 @@ digraph G {
 }
 ```
 
-## Sharding Linear, and Matmul, over the in dimension
+### Sharding Linear, and Matmul, over the in dimension
 
 Previously we developed affine projection sharding over the $batch$ and $out$ dimensions of a tensor-valued $Linear$
 operation, assuming dimensions: $X: [batch, in]$, $W: [in, out]$, $b: [out]$, $Y: [batch, out]$:
@@ -2625,7 +2633,7 @@ In this decomposition, $Prod$ is a well-behaved block operation; but
 $SumDim$ is represented differently, it is not a block operation as we've represented them
 before, but a *reduction operation*.
 
-### Sharding Prod
+#### Sharding Prod
 
 Consider $Prod$; a simple cell-wise multiplication. We expect the output
 to have the same shape and dimensions as the input:
@@ -2796,7 +2804,7 @@ digraph G {
 > 📝 Note: careful readers may note that this involves the same input
 > data being read by multiple output cells.
 
-### Reduction Operations
+#### Reduction Operations
 
 Reduction operations require information *between* cells, on the face they
 don't appear shardable. Consider the index projections for a
@@ -3148,7 +3156,7 @@ digraph G {
 }
 ```
 
-### Rewriting Matmul
+#### Rewriting Matmul
 
 Returning to the definition of $Matmul$,
 
@@ -3342,7 +3350,7 @@ digraph G {
 }
 ```
 
-### Sharding Linear over in
+#### Sharding Linear over in
 
 Putting this together with the definition of $Linear$,
 
@@ -3881,7 +3889,7 @@ Being able to express this re-write option, when the $in$ dimension is not shard
 will require us to develop high-order meta-operator representation above the index
 projection function formalism.
 
-## Graph Rewrite Rules
+### Graph Rewrite Rules
 
 [Graph rewriting](https://en.wikipedia.org/wiki/Graph_rewriting) is a common implementation feature
 of graph evaluation languages; "graph rewrite rules" are rules to describe legal rewrites on a graph,
@@ -4128,7 +4136,7 @@ methodologies:
 * **Global Search** - searching for subgraph patterns in the full graph
   which match a given rule, and rewriting the matching subgraph.
 
-### Local Node Expansion Rewrite
+#### Local Node Expansion Rewrite
 
 Local node expansion is the simplest form of graph rewrite to implement.
 
@@ -4265,7 +4273,7 @@ digraph G {
 }
 ```
 
-#### Conditional Rewrites
+##### Conditional Rewrites
 
 In the situation where there are multiple expansions of a given node,
 it is common to set some conditional gates upon those expansions;
@@ -4281,7 +4289,7 @@ when multiple tests match:
 This is helpful with single descent local rewrite implementations;
 but it is limiting for global optimization.
 
-#### Ambiguous Rewrites
+##### Ambiguous Rewrites
 
 If we permit multiple expansions of a node to simultaneously match,
 either by having no conditions on expansion, or by permitting more
@@ -4302,7 +4310,7 @@ more complex and expensive at compile time; but also permits much
 more aggressive optimizations; particularly when paired with global
 pattern search rewrites, as discussed below.
 
-### Global Pattern Search Rewrite
+#### Global Pattern Search Rewrite
 
 Global pattern search rewrites are not limited to defining local
 expansions of high-level abstract nodes.
@@ -4400,7 +4408,7 @@ each re-write step will produce an instance with a different estimated cost acco
 to our cost models, and we can merge rewrites with stochastic optimization to allow
 us to use the ambiguity of optional rewrites to permit aggressive exploration of the optimization space.
 
-### Returning to Linear
+#### Returning to Linear
 
 Returning to the implementation of $Linear$ expansion; we could implement $Linear$
 using either local expansion, or global rewrite search.
@@ -4430,7 +4438,7 @@ digraph G {
 }
 ```
 
-#### Linear under Local Expansion
+##### Linear under Local Expansion
 
 Under local expansion, we'd implement $Linear$ with expansion rules
 on the operator, expanding to either a $LinearBlock$ if we choose not to shard on the $in$ dimension
@@ -4521,7 +4529,7 @@ digraph G {
 }
 ```
 
-#### Linear under Global Rewrite
+##### Linear under Global Rewrite
 
 Under global rewrite rules, we'd **always** expand $Linear$ to the $Prod$, $SumDim$, $Sum$
 representation:
@@ -4612,7 +4620,7 @@ One of the benefits of this approach is that **any** matching subgraph
 with these operators could be fused anywhere in the graph, even if
 they'd never originally been part of a $Linear$ block.
 
-### Graph Fusion Operators
+#### Graph Fusion Operators
 
 Global rewrite operations become significantly more powerful when paired
 with fusion operators designed for them.
@@ -4628,7 +4636,7 @@ api designers in terms of the known family of fusion operators and rewrite
 operations; leading to potentially large wins in fusion optimization search
 results.
 
-## Parallel Stochastic Optimization
+### Parallel Stochastic Optimization
 
 The tapestry work thus far has focused on establishing rewrite rules
 to find equivalent evaluation graphs to an initial high-level abstract program.
@@ -4656,7 +4664,7 @@ but a collection of values we might be simultaneously interested in improving. F
 * the node memory utilization waste
 * the node compute utilization waste
 
-### Stochastic Pareto Frontier Optimization
+#### Stochastic Pareto Frontier Optimization
 
 Enter the field of [multi-objective optimization](https://en.wikipedia.org/wiki/Multi-objective_optimization);
 which is the research field into optimization when we have multiple dimensions to care about.
@@ -4707,7 +4715,7 @@ for our initial optimization search.
 
 <img src="/Tapestry/optimization/pareto.constraint.svg"/>
 
-### Graph Mutator Selection Optimization
+#### Graph Mutator Selection Optimization
 
 There's also a host of research about how to balance selecting which mutation rules
 from our collection of mutation rules $\\{ R_i: G \rightarrow G' \\}$ to apply.
@@ -4740,7 +4748,7 @@ attached to a given problem.
 One additional value of dynamic mutator rule balancing is that it eases use of
 third-party and application-specific mutations rules.
 
-### Parallel Optimization
+#### Parallel Optimization
 
 Given that our instances are very small relative to the data they operate on
 (they describe execution graphs), and our cost models are relatively abstract
