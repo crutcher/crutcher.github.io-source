@@ -5163,8 +5163,8 @@ label=<
               </tr>
           <tr>
               <td>…</td>
-              <td bgcolor="#D6EAF8">y<sub>i,j,k</sub></td>
-              <td border="3">y<sub>i,j+1,k</sub></td>
+              <td bgcolor="#D6EAF8">y<sub>i,j</sub></td>
+              <td border="3">y<sub>i,j+1</sub></td>
               <td>…</td>
               <td>…</td>
               </tr>
