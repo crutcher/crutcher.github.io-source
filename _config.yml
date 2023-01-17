@@ -153,3 +153,5 @@ feed:
   icon: icon.png
   autodiscovery: true
   template:
+
+# https://github.com/bennycode/hexo-insert-toc

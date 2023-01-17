@@ -9,6 +9,8 @@ mathjax: true
 
 <img src="/Tapestry/tapestry.pastel.svg" width="200"/>
 
+<!-- toc -->
+
 ## Progress
 
 > Note: Document Completion Progress ~= 5%
