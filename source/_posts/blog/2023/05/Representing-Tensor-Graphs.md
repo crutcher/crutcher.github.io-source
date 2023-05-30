@@ -4,7 +4,6 @@ date: 2023-05-30 13:46:33
 tags:
  - tapestry
 ---
-
 This post is about notes towards an implementable representation of the
 "Abstract Expression Graph" / "Sharded Expression Graph" relationship in
 [Tapestry](/Tapestry).
@@ -83,7 +82,7 @@ We are interested in the ability to:
 * execute a given sharded schedule;
 * to compare the costs (in time and space) of different sharding choices;
 * and prune expression trees which are not transitivity observed.
- 
+
 ```graphviz
 digraph G {
   compound=true;
@@ -92,37 +91,37 @@ digraph G {
   subgraph cluster_aeg {
     label="Abstract Expression Graph";
     style=dotted;
-    
+  
     B [label="Tensor: B", shape=box3d, fillcolor="#d0d0ff", style=filled];
     A [label="Tensor: A", shape=box3d, fillcolor="#d0d0ff", style=filled];
     D [label="Tensor: D", shape=box3d, fillcolor="#d0d0ff", style=filled];
-    
+  
     subgraph cluster_C {
       label="Pruned";
       style=filled;
       color=lightgray;
-      
+  
       C [label="Tensor: C", shape=box3d, fillcolor="#d0d0ff", style=filled];
     }
-    
+  
     E [label="Tensor: E", shape=box3d, fillcolor="#d0d0ff", style=filled];
-    
+  
     X -> B;
     X -> A;
     X [label="BlockExpr: X", shape=Msquare, fillcolor="#d0ffd0", style=filled];
     C -> X;
     D -> X;
-    
+  
     Y -> D;
     Y [label="BlockExpr: Y", shape=Msquare, fillcolor="#d0ffd0", style=filled];
-    
+  
     E -> Y;
   }
   
   subgraph cluster_seg {
     label="Sharded Expression Graph";
     style=dotted;
-    
+  
     subgraph cluster_B {
       label="Tensor: B";
       style=solid;
@@ -134,42 +133,42 @@ digraph G {
       A1 [label="Tensor: A.1", shape=box3d, fillcolor="#d0d0ff", style=filled];
       A2 [label="Tensor: A.2", shape=box3d, fillcolor="#d0d0ff", style=filled];
     }
-    
+  
     subgraph cluster_X {
       label="BlockExpr: X";
       style=solid;
       X1 [label="Shard: X.1", shape=Msquare, fillcolor="#d0ffd0", style=filled];
       X2 [label="Shard: X.2", shape=Msquare, fillcolor="#d0ffd0", style=filled];
     }
-    
+  
     X1 -> A1;
     X1 -> B1;
     D1 -> X1;
-    
+  
     X2 -> A2;
     X2 -> B1;
     D2 -> X2;
-    
+  
     subgraph cluster_D {
       label="Tensor: D";
       style=solid;
       D1 [label="Tensor: D.1", shape=box3d, fillcolor="#d0d0ff", style=filled];
       D2 [label="Tensor: D.2", shape=box3d, fillcolor="#d0d0ff", style=filled];
     }
-    
+  
     Y1 -> D1;
     E1 -> Y1;
-    
+  
     Y2 -> D2;
     E2 -> Y2;
-    
+  
     subgraph cluster_Y {
       label="BlockExpr: Y";
       style=solid;
       Y1 [label="Shard: Y.1", shape=Msquare, fillcolor="#d0ffd0", style=filled];
       Y2 [label="Shard: Y.2", shape=Msquare, fillcolor="#d0ffd0", style=filled];
     }
-    
+  
     subgraph cluster_E {
       label="Tensor: E";
       style=solid;
@@ -180,11 +179,8 @@ digraph G {
   
   outputorder="edgesfirst";
   
-  X2 -> X [constraint=false, style=dashed];
-  X1 -> X [constraint=false, style=dashed];
-  
-  Y2 -> Y [constraint=false, style=dashed];
-  Y1 -> Y [constraint=false, style=dashed];
+  X1 -> X [constraint=false, style=dashed, ltail=cluster_X];
+  Y1 -> Y [constraint=false, style=dashed, ltail=cluster_Y];
 
   obs [shape=doublecircle];
   obs -> E2 [arrowhead=dot, lhead=cluster_E];
@@ -230,7 +226,7 @@ in a way which enables us to:
 * Generate abstract graphs from the sharded graphs;
 * Apply a cost model to the sharded graphs;
 * Write a stochastic optimizer to find good sharding choices.
- 
+
 #### The cost information
 
 As a consequence of the choice of index spaces and index projection functions for the
@@ -253,8 +249,9 @@ for each of an arbitrary number of inputs.
 
 Given an index space `I` with dimensions `batch, x, y, k`;
 
+
 |       | gpu | ram |
-|-------|-----|-----|
+| ----- | --- | --- |
 | batch | 1   | 1   |
 | x     | 4   | 8   |
 | y     | 4   | 8   |
@@ -286,40 +283,40 @@ digraph G {
     style=filled;
     shape=Msquare;
     fillcolor="#d0ffd0";
-    
+  
     Index [shape=box3d, fillcolor="#d0d0ff", style=filled];
     Costs [shape=box3d, fillcolor="#d0d0dd", style=filled];
-    
+  
     ASel [label="Slice: A", shape=box3d, fillcolor="#d0d0dd", style=filled];
     BSel [label="Slice: B", shape=box3d, fillcolor="#d0d0dd", style=filled];
     CSel [label="Slice: C", shape=box3d, fillcolor="#d0d0dd", style=filled];
-      
+    
     subgraph cluster_signature {
       label="Signature";
       fillcolor="#ffffd0";
-      
+    
       AbstractIndex [shape=box3d];
-      
+    
       Pa [label=<P<sub>a</sub>(idx)>, shape=parallelogram];
       Pb [label=<P<sub>b</sub>(idx)>, shape=parallelogram];
       Pc [label=<P<sub>c</sub>(idx)>, shape=parallelogram];
-      
+    
       AbstractIndex -> Pa;
       AbstractIndex -> Pb;
       Pc -> AbstractIndex [dir=back];
-      
+    
       MarginalCosts [shape=box3d];
-      
+    
       {rank=same; MarginalCosts; AbstractIndex}
     }
-    
+  
     MarginalCosts -> Costs [constraint=false];
     AbstractIndex -> MarginalCosts;
-    
+  
     Pa -> MarginalCosts [constraint=false];
     Pb -> MarginalCosts [constraint=false];
     MarginalCosts -> Pc [dir=back, constraint=false];
-    
+  
     Index -> AbstractIndex [constraint=false];
   }
   
@@ -340,10 +337,10 @@ is not necessary to schedule or execute a correct sharding as-is.
 Additionally, there's annotation information we could include or derive, such as:
 
 * the expected size of the input / output tensors
-    * when married with a concrete execution schedule, this permits transmission bandwith/delay modeling.
+  * when married with a concrete execution schedule, this permits transmission bandwith/delay modeling.
 * the expected compute costs of the block
-    * CPU/GPU delay
-    * Block memory usage
+  * CPU/GPU delay
+  * Block memory usage
 
 This information about blocks, describing the cost models, is needed in most places where the
 polyhedral type information is needed.
