@@ -2907,7 +2907,7 @@ then we know we can split the operation into intermediate results.
 
 Suppose we introduced a $block$ index dimension, to model partial reductions
 over blocks of the reduction dimension, producing an intermediate result
-with an additional $block$ dimension; and then and then applied a second $SumDim$
+with an additional $block$ dimension; and then applied a second $SumDim$
 stage to complete the reduction:
 
 ```graphviz
