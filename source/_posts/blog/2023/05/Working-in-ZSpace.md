@@ -6,10 +6,9 @@ mathjax: true
 date: 2023-05-26 14:55:55
 ---
 
-
-$$
+$$\begin{eqnarray\*}
 ZSpace := \\{ \mathbb{Z}^n | n \in \mathbb{Z}^+ \\}
-$$
+\end{eqnarray\*}$$
 
 "ZSpace" is a common shorthand, typographically simple name for the infinite
 family of $n$-dimensional discrete Euclidean spaces.
@@ -18,10 +17,9 @@ The $n$-dimensional coordinates of discrete-celled tensors (the kind of tensors 
 are *ZSpace* objects, as are bounding regions selecting those coordinates, and morphisms or maps from one region to
 another.
 
-Though we could, in principle, simply call a coordinate an array of integers.
-
-Performing any non-trivial index math on discrete location $n$-dimensional tensors requires
-libraries for representing and manipulating
+Though we could, in principle, simply call a coordinate an array of integers;
+performing any non-trivial index math on discrete location $n$-dimensional tensors requires
+libraries for representing and manipulating these tensors.
 
 As I've been working on pieces of [Tapestry: Shardable Tensor Expression Environments](/Tapestry);
 most of the work has be focused on libraries for manipulating objects in ZSpace without spending

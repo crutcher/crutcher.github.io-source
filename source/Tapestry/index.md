@@ -11,29 +11,14 @@ mathjax: true
 
 <!-- toc -->
 
-## Progress
+## Status
 
-> Note: Document Completion Progress ~= 5%
+> Draft: Document Completion Progress ~= 15%
 
 This is an in-progress work, to define the background material and theory for an
 optimizing tensor expression compilation and evaluation toolchain;
 As such, it's incomplete; and will grow as I expand and firm up the representation
-of the ideas. This section exists as a rough guide to the active work edges
-in the document as it stands.
-
-Major next-steps in the work exist along these axes:
-
-* Sharding Theory - sections deriving sharding theory from principles.
-  * Describe the theory for sharding $Conv$ / convolution operators.
-  * Describe tensor view / slice / fusion structure operators.
-* Rewrite Theory - sections deriving rewrite pattern theory from principles.
-  * Describe theory for graph rewrite matching.
-* Mechanics - sections describing implementation choices.
-  * Formal Operator Semantics - describing a formal representation
-    consistent with the derived theory.
-  * Formal Rewrite Semantics - describing a formal representation
-    consistent with the derived theory.
-
+of the ideas.
 
 ## Abstract
 
@@ -5509,3 +5494,424 @@ There are two broad approaches to realize this goal, which will be explored in l
 
 In practice, these two approaches are isomorphic to each other; though in some situations
 some problems are easier to express in one or the other approach. We'll develop both.
+
+## Concrete Representation Derivation
+
+This section is devoted to working out the datatypes and algorithms to actually
+implement the math described in the evaluation theory. The sections are seperated
+because they're both complex, and have a lot of practical considerations particular
+to their portion of the problem; by factoring the derivations into separate tracks,
+I hope to make both more tractable to follow, critique, and extend.
+
+### Working in ZSpace
+
+$$\begin{eqnarray\*}
+ZSpace := \\{ \mathbb{Z}^n | n \in \mathbb{Z}^+ \\}
+\end{eqnarray\*}$$
+
+"ZSpace" is a common shorthand, typographically simple name for the infinite
+family of $n$-dimensional discrete Euclidean spaces.
+
+The $n$-dimensional coordinates of discrete-celled tensors (the kind of tensors we work with on computers)
+are *ZSpace* objects, as are bounding regions selecting those coordinates, and morphisms or maps from one region to
+another.
+
+Though we could, in principle, simply call a coordinate an array of integers;
+performing any non-trivial index math on discrete location $n$-dimensional tensors requires
+libraries for representing and manipulating these tensors.
+
+As I've been working on pieces of [Tapestry: Shardable Tensor Expression Environments](/Tapestry);
+most of the work has be focused on libraries for manipulating objects in ZSpace without spending
+all of my time debugging math errors.
+
+Most tensor libraries I've been able to examine, for Python, C++, Java, and Rust, focus primarily on abstracting
+the details of using hardware accelerated vectorized floating point operations. They carry big dependency costs,
+and have lots of runtime call patterns, driven by this.
+
+So I've been building my own ZSpace libs, which cannot represent anything other than integer values;
+because my focus isn't on the performance of the calculations of the data in the values; but on correctly manipulating
+(with type checking and runtime assertions) index regions describing shards of expressions.
+
+This is, for instance, the ZTensor and tests:
+
+* [ZTensor.java](https://github.com/crutcher/loom/blob/main/java/src/main/java/loom/zspace/ZTensor.java)
+* [ZTensorTest.java](https://github.com/crutcher/loom/blob/main/java/src/test/java/loom/zspace/ZTensorTest.java)
+
+This is a situation where the existing libraries were just not built for manipulating polyhedral types and ranges
+in ZSpace; where we frequently wish to perform transforms which result in coordinates.
+
+There's a tremendous amount of clever little tricks wrapped up in how tensor libs get built; and how
+things like `transpopse`, `permute`, `reverse`, `select`, `squeeze`, `unsqueeze`, and `broadcastTo`
+can be implemented with zero-copy views which read or write back to their parent; and I may do a series on "How to write
+a Tensor";
+but for now a fair number of those tricks are wrapped up in that code.
+
+#### Side Note: Size, Z^0, and Scalars
+
+The size of a contiguous slice of ZSpace (the number of elements contained in it), and thus of a contiguous slice of a
+tensor; is the product of the size of
+the inclusive bounds of that slice; aka, the *shape* of the tensor.
+
+* In $\mathbb{Z}^1$, simple arrays, the size is trivially the length of the array;
+* In $\mathbb{Z}^2$, simple matrices, the size is $rows * cols$, the product of the dimensions;
+* and so on for $n >= 1$
+
+However, consider the $0$-dimensional space $\mathbb{Z}^0$. The product of an empty collection is defined as $1$;
+as this is the most consistent answer for a "zero" for multiplication; so we have this argument for
+the existence of $0$-dimensional tensors which still have one element in them; purely from
+the math of the product of shapes.
+
+And it turns out, that's how all tensor libraries model scalar values; as $0$-dimensional tensors.
+
+
+### Representing Graphs
+Expression languages differ from process languages in that define values in terms of
+transformations on previous values. The simplest outcome of this is that it's quite
+easy to use a given value more than once; but by adding an observer, we can define
+directly which values are ever observed by the outside world.
+
+Values which are never observed are free to be inlined (when they contribute to other
+values which transitively are observed), or even eliminated entirely (when they don't
+contribute to any observed values).
+
+#### Simple Expressions
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  A [label="Tensor: A", shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+  obs [shape=doublecircle];
+  obs -> A [arrowhead=dot];
+}
+```
+
+What does it mean for us to be able to observe a tensor value?
+
+* After the expression is evaluated, we can read the value of the tensor.
+
+#### Chained Expressions
+
+We're generally interested in more complex expressions, where transformations are applied to
+tensor values, and then to the results of those transformations, and so on.
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  A [label="Tensor: A", shape=box3d, fillcolor="#d0d0ff", style=filled];
+  B [label="Tensor: B", shape=box3d, fillcolor="#d0d0ff", style=filled];
+  C [label="Tensor: C", shape=box3d, fillcolor="#d0d0ff", style=filled];
+  D [label="Tensor: D", shape=box3d, fillcolor="#d0d0ff", style=filled];
+  E [label="Tensor: E", shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+  X -> A;
+  X -> B;
+  X [label="BlockExpr: X", shape=Msquare, fillcolor="#d0ffd0", style=filled];
+  C -> X;
+  D -> X;
+  
+  Y -> D;
+  Y [label="BlockExpr: Y", shape=Msquare, fillcolor="#d0ffd0", style=filled];
+  
+  E -> Y;
+
+  obs [shape=doublecircle];
+  obs -> E [arrowhead=dot];
+}
+```
+
+In this example, the *Tensor: C* value is never observed, and so it can dropped entirely
+from our schedule, or generated and *written* to a null-store by the block expr.
+
+We are operating with a contract that if we provide the data in `A` and `B` to `X`;
+that it will correctly produce `C` and `D` for us; and that this operation is idempotent.
+
+Additionally, at this level it's quite possible that the tensors are abstractions
+which could not fit on a single machine.
+
+#### Sharded Expressions
+
+We are interested in the ability to:
+
+* shard these operations and values;
+* execute a given sharded schedule;
+* to compare the costs (in time and space) of different sharding choices;
+* and prune expression trees which are not transitivity observed.
+
+```graphviz
+digraph G {
+  compound=true;
+  rankdir=RL;
+  
+  subgraph cluster_aeg {
+    label="Abstract Expression Graph";
+    style=dotted;
+  
+    B [label="Tensor: B", shape=box3d, fillcolor="#d0d0ff", style=filled];
+    A [label="Tensor: A", shape=box3d, fillcolor="#d0d0ff", style=filled];
+    D [label="Tensor: D", shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+    subgraph cluster_C {
+      label="Pruned";
+      style=filled;
+      color=lightgray;
+  
+      C [label="Tensor: C", shape=box3d, fillcolor="#d0d0ff", style=filled];
+    }
+  
+    E [label="Tensor: E", shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+    X -> B;
+    X -> A;
+    X [label="BlockExpr: X", shape=Msquare, fillcolor="#d0ffd0", style=filled];
+    C -> X;
+    D -> X;
+  
+    Y -> D;
+    Y [label="BlockExpr: Y", shape=Msquare, fillcolor="#d0ffd0", style=filled];
+  
+    E -> Y;
+  }
+  
+  subgraph cluster_seg {
+    label="Sharded Expression Graph";
+    style=dotted;
+  
+    subgraph cluster_B {
+      label="Tensor: B";
+      style=solid;
+      B1 [label="Tensor: B.1", shape=box3d, fillcolor="#d0d0ff", style=filled];
+    }
+    subgraph cluster_A {
+      label="Tensor: A";
+      style=solid;
+      A1 [label="Tensor: A.1", shape=box3d, fillcolor="#d0d0ff", style=filled];
+      A2 [label="Tensor: A.2", shape=box3d, fillcolor="#d0d0ff", style=filled];
+    }
+  
+    subgraph cluster_X {
+      label="BlockExpr: X";
+      style=solid;
+      X1 [label="Shard: X.1", shape=Msquare, fillcolor="#d0ffd0", style=filled];
+      X2 [label="Shard: X.2", shape=Msquare, fillcolor="#d0ffd0", style=filled];
+    }
+  
+    X1 -> A1;
+    X1 -> B1;
+    D1 -> X1;
+  
+    X2 -> A2;
+    X2 -> B1;
+    D2 -> X2;
+  
+    subgraph cluster_D {
+      label="Tensor: D";
+      style=solid;
+      D1 [label="Tensor: D.1", shape=box3d, fillcolor="#d0d0ff", style=filled];
+      D2 [label="Tensor: D.2", shape=box3d, fillcolor="#d0d0ff", style=filled];
+    }
+  
+    Y1 -> D1;
+    E1 -> Y1;
+  
+    Y2 -> D2;
+    E2 -> Y2;
+  
+    subgraph cluster_Y {
+      label="BlockExpr: Y";
+      style=solid;
+      Y1 [label="Shard: Y.1", shape=Msquare, fillcolor="#d0ffd0", style=filled];
+      Y2 [label="Shard: Y.2", shape=Msquare, fillcolor="#d0ffd0", style=filled];
+    }
+  
+    subgraph cluster_E {
+      label="Tensor: E";
+      style=solid;
+      E1 [label="Tensor: E.1", shape=box3d, fillcolor="#d0d0ff", style=filled];
+      E2 [label="Tensor: E.2", shape=box3d, fillcolor="#d0d0ff", style=filled];
+    }
+  }
+  
+  outputorder="edgesfirst";
+  
+  X1 -> X [constraint=false, style=dashed, ltail=cluster_X];
+  Y1 -> Y [constraint=false, style=dashed, ltail=cluster_Y];
+
+  obs [shape=doublecircle];
+  obs -> E2 [arrowhead=dot, lhead=cluster_E];
+  obs -> E [arrowhead=dot];
+}
+```
+
+This continues the assertion that this is an equivalent and correct sharding;
+that each of the operations, if performed in dependency order, will produce the same
+result as the original expression.
+
+#### Polyhedral Type Information
+
+Being able to say:
+
+* Expression `X'` is a sharded version of expression `X`
+
+Is independent of our ability to:
+
+* Verify that `X'` is a sharded version of `X`; or
+* Given `X`, generate shareded versions `X'` and `X''`
+
+If we have an execution environment for `X'`; having the sharded version is sufficient
+for execution.
+
+* Being able to describe the relative components in a tractable manner is the main project.
+
+The additional information, needed to verify and generate sharded versions, is
+the polyhedral type signature information attached to the expressions.
+
+Finding a concrete representation to describe the relationships between the
+abstract expression graphs, the polyhedral type information, and the sharded
+expression graphs is the next major block on this project,
+in a way which enables us to:
+
+* Verify that the sharded graphs are correct;
+* Generate sharded graphs from the abstract graphs;
+* Generate abstract graphs from the sharded graphs;
+* Apply a cost model to the sharded graphs;
+* Write a stochastic optimizer to find good sharding choices.
+
+#### The Cost Information
+
+As a consequence of the choice of index spaces and index projection functions for the
+*Tapestry* expression representations; we can show that the marginal data sharing
+costs for input and output have constant marginal costs along each dimension of
+the index space; e.g. the marginal cost change of including one additional step along a
+batch dimension is constant, though different, than taking one additional step along
+a channel dimension.
+
+As the block compute model assumes shardable blocks which are location agnostic in
+slice space; *Assuming* that the marginal compute/memory costs of blocks is linearly
+related to their inputs along the above dimensions; we can take as an abstrac cost model the
+notion of marginal resource cost per step along each dimension of the index space.
+
+Additionally, at this layer we don't know what to *do* with those costs, that is a function
+of the cost model / scheduling simulator (how are parallel costs managed? are transmission/bandwidth
+costs elided when a tensor is being moved to the same machine it's already on; etc.);
+so we can model costs as fixed marginal costs per step along each dimension of the index space;
+for each of an arbitrary number of inputs.
+
+Given an index space `I` with dimensions `batch, x, y, k`;
+
+|       | gpu | ram |
+| ----- | --- | --- |
+| batch | 1   | 1   |
+| x     | 4   | 8   |
+| y     | 4   | 8   |
+| k     | 128 | 64  |
+
+We also assume that the transmission of tensors is well modeled,
+and that the marginal costs associated with the tensors is borne
+entirely by the marginal data overlap and the transmissions costs.
+
+Additionally, multiple sharded expressions can share the same shape
+and cost information (as well as information about the operation being modeled).
+
+In this diagram, we've added the marginal costs, the index projection functions
+(<code>P<sub>a</sub>(idx)</code>), the abstract and concrete index, and tensor
+selection slices to the information present in the block expression:
+
+```graphviz
+digraph G {
+  compound=true;
+  rankdir=RL;
+  
+  B [label="Tensor: B", shape=box3d, fillcolor="#d0d0ff", style=filled];
+  A [label="Tensor: A", shape=box3d, fillcolor="#d0d0ff", style=filled];
+  C [label="Tensor: C", shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+  
+  subgraph cluster_expr {
+    label="BlockExpr";
+    style=filled;
+    shape=Msquare;
+    fillcolor="#d0ffd0";
+  
+    Index [shape=box3d, fillcolor="#d0d0ff", style=filled];
+    Costs [shape=box3d, fillcolor="#d0d0dd", style=filled];
+  
+    ASel [label="Slice: A", shape=box3d, fillcolor="#d0d0dd", style=filled];
+    BSel [label="Slice: B", shape=box3d, fillcolor="#d0d0dd", style=filled];
+    CSel [label="Slice: C", shape=box3d, fillcolor="#d0d0dd", style=filled];
+    
+    subgraph cluster_signature {
+      label="Signature";
+      fillcolor="#ffffd0";
+    
+      AbstractIndex [shape=box3d];
+    
+      Pa [label=<P<sub>a</sub>(idx)>, shape=parallelogram];
+      Pb [label=<P<sub>b</sub>(idx)>, shape=parallelogram];
+      Pc [label=<P<sub>c</sub>(idx)>, shape=parallelogram];
+    
+      AbstractIndex -> Pa;
+      AbstractIndex -> Pb;
+      Pc -> AbstractIndex [dir=back];
+    
+      MarginalCosts [shape=box3d];
+    
+      {rank=same; MarginalCosts; AbstractIndex}
+    }
+  
+    MarginalCosts -> Costs [constraint=false];
+    AbstractIndex -> MarginalCosts;
+  
+    Pa -> MarginalCosts [constraint=false];
+    Pb -> MarginalCosts [constraint=false];
+    MarginalCosts -> Pc [dir=back, constraint=false];
+  
+    Index -> AbstractIndex [constraint=false];
+  }
+  
+  Pa -> ASel;
+  ASel -> A;
+  
+  Pb -> BSel;
+  BSel -> B;
+  
+  CSel -> Pc [dir=back];
+  C -> CSel [dir=back];
+}
+```
+
+This information is necessary to make any changes to the sharding of the expressions; though it
+is not necessary to schedule or execute a correct sharding as-is.
+
+Additionally, there's annotation information we could include or derive, such as:
+
+* the expected size of the input / output tensors
+  * when married with a concrete execution schedule, this permits transmission bandwith/delay modeling.
+* the expected compute costs of the block
+  * CPU/GPU delay
+  * Block memory usage
+
+This information about blocks, describing the cost models, is needed in most places where the
+polyhedral type information is needed.
+
+#### Encapsulation
+
+When picking graph ownership mechanics, we're selecting between different encapsulation
+options to represent the relationship between abstract and sharded expression graphs,
+and the signatures which describe legal sharding and marginal costs.
+
+Choosing a concrete representation of the above relationships determines the traversal API for
+the compiler's cost models, mutation proposers, and debuggers. This in turn affects the
+development and communication costs of the entire effort.
+
+I speculate that many of the previous efforts in this space have struggled under the requirement
+that they start with a concrete expression sharding, and work backwards attempting to
+derive an abstract graph and operator signatures for the associated expressions,
+and then to produce transformations which maintain the semantics of the original
+expressions.
+
+And this has been difficult, because many of the languages in question lack
+particularly strong shape signature information; most of the development
+effort seems to get soaked up in this code analysis phase.
