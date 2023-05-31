@@ -6085,6 +6085,9 @@ we forbid composite selections:
   * All *Selection* operations are "simple", and complex *Tensor Views* are assembled via trees of chained
     atomic *Selections*; not composite *Selections*.
 
+> Under evaluation, it will generally be trivial to fuse *Selectors*; but for analytic modeling,
+> we keep them separate.
+
 #### An Example From Conv
 
 We now have the operations necessary to fully describe the previous dilated $Conv$ example:
