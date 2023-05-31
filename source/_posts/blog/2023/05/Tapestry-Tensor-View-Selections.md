@@ -577,6 +577,7 @@ the example of fusing the results of a sharded dilated convolution kernel).
 * `interleave` - assemble a tensor view by interleaving multiple tensors along a dimension.
 * `repeat`<sup>\*</sup> - assemble a tensor view by repeating a tensor along a dimension.
 * `pad`<sup>\*</sup> - supply data outside the selection region with a default value, or a reflection.
+* `where`, `max`, `min` - conditionally construct a view by switching on the data from multiple views.
 
 These operations cannot be implemented using discrete affine projections; they generally perform
 routing by applying some range limit comparison operation, with or without a modulo, to one
@@ -610,15 +611,18 @@ We now have the operations necessary to fully describe the previous dilated $Con
 
 ```graphviz
 digraph G {
-  rankdir=LR;
+rankdir=LR;
 
-  idx [
-    shape="plain",
-    label=<
-    <table border="0">
-    <tr><td><table cellpadding="8">
+idx [
+shape="plain",
+label=<
+<table border="0">
+<tr><td>
+
+      <table cellpadding="8">
           <tr>
               <td>⋱</td>
+              <td>…</td>
               <td>…</td>
               <td>…</td>
               <td>⋰</td>
@@ -628,90 +632,127 @@ digraph G {
               <td bgcolor="#D6EAF8">i,j</td>
               <td border="3">i,j+1</td>
               <td>…</td>
+              <td>…</td>
+              </tr>
+          <tr>
+              <td>…</td>
+              <td>…</td>
+              <td>…</td>
+              <td>…</td>
+              <td>…</td>
               </tr>
           <tr>
               <td>⋰</td>
               <td>…</td>
               <td>…</td>
+              <td>…</td>
               <td>⋱</td>
               </tr>
-          </table></td></tr>
+          </table>
+	</td></tr>
+
     <tr><td><i>index</i></td></tr>
-        </table>
+          </table>
     >,
-  ];
+];
 
-  X [
-      shape="plain",
-      label=<
+X [
+shape="plain",
+label=<
+<table cellpadding="8">
+<tr>
+<td bgcolor="#D6EAF8">⋱</td>
+<td border="3">…</td>
+<td bgcolor="#D6EAF8">…</td>
+<td border="3">…</td>
+<td bgcolor="#D6EAF8">…</td>
+<td border="3">…</td>
+<td>…</td>
+<td>⋰</td>
+</tr>
+<tr>
+<td bgcolor="#D6EAF8">…</td>
+<td border="3">…</td>
+<td bgcolor="#D6EAF8">x<sub>i,j</sub></td>
+<td border="3">x<sub>i,j+1</sub></td>
+<td bgcolor="#D6EAF8">…</td>
+<td border="3">…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+<tr>
+<td bgcolor="#D6EAF8">…</td>
+<td border="3">…</td>
+<td bgcolor="#D6EAF8">…</td>
+<td border="3">…</td>
+<td bgcolor="#D6EAF8">…</td>
+<td border="3">…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+<tr>
+<td>⋰</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>⋱</td>
+</tr>
+</table>
+>,
+];
+
+F [
+shape="plain",
+label=<
+<table cellpadding="8">
+<tr><td>
+<table bgcolor="#D5F5E3" cellpadding="8">
+<tr>
+<td >f<sub>a,b,k</sub></td>
+<td >…</td>
+<td>⋰</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+<tr>
+<td>⋰</td>
+<td>…</td>
+<td>⋱</td>
+</tr>
+</table>
+</td></tr>
+</table>
+>,
+];
+
+Conv [
+shape=rarrow,
+style=filled,
+fillcolor="#E5E8E8",
+margin=0.3
+];
+
+strides [
+label=<strides: [1,<b>2</b>,…]>,
+shape=rectangle,
+];
+
+strides -> Conv;
+
+Y [
+shape="plain",
+label=<
+<table cellpadding="8">
+<tr><td>
+
       <table cellpadding="8">
           <tr>
-              <td bgcolor="#D6EAF8">⋱</td>
-              <td border="3" bgcolor="#D6EAF8">…</td>
-              <td border="3" bgcolor="#D6EAF8">…</td>
-              <td border="3">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td border="3" bgcolor="#D6EAF8">x<sub>i,j</sub></td>
-              <td border="3" bgcolor="#D6EAF8">x<sub>i,j+1</sub></td>
-              <td border="3">…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td border="3" bgcolor="#D6EAF8">…</td>
-              <td border="3" bgcolor="#D6EAF8">…</td>
-              <td border="3">…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  F [
-      shape="plain",
-      label=<
-      <table bgcolor="#D5F5E3" cellpadding="8">
-          <tr>
-              <td >f<sub>a,b</sub></td>
-              <td >…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  Conv [
-      shape=rarrow,
-      style=filled,
-      fillcolor="#E5E8E8",
-      margin=0.3
-  ];
-
-  Y [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
               <td>⋱</td>
               <td>…</td>
               <td>…</td>
@@ -720,8 +761,8 @@ digraph G {
               </tr>
           <tr>
               <td>…</td>
-              <td bgcolor="#D6EAF8">y<sub>i,j,k</sub></td>
-              <td border="3">y<sub>i,j+1,k</sub></td>
+              <td bgcolor="#D6EAF8">y<sub>i,j</sub></td>
+              <td border="3">y<sub>i,j+1</sub></td>
               <td>…</td>
               <td>…</td>
               </tr>
@@ -740,18 +781,17 @@ digraph G {
               <td>⋱</td>
               </tr>
           </table>
+
+	  </td></tr>
+        </table>
       >,
-  ];
+];
 
-  X -> Conv;
-  F -> Conv;
-  Conv -> Y;
-  
-  idx -> X [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
-  idx -> F [label=<P<sub>F</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
-  idx -> Y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
+X -> Conv;
+F -> Conv;
+Conv -> Y;
 
-  { rank=same; idx; Conv; }
+{ rank=same; idx; Conv; strides; }
 }
 ```
 
@@ -1148,3 +1188,27 @@ digraph G {
   Inter -> Y;
 }
 ```
+
+#### Generators
+
+An additional potentially useful category of *Selector* are generators; consider:
+* `zeros`, `ones`, `full` - generate a view full of a given value.
+* `rand` - generate "random" data.
+
+Generators can be used to create an entire Tensor View on the local machine;
+as the data is a deterministic function, there's no data to transmit.
+
+##### Random Generators
+
+It is important to note that `rand` is an entire sub-category of problems:
+* We require an idempotent, and thus deterministic random field;
+  in a given evaluation, we must be able to rebuild the *same* random
+  values every time a tensor view is accessed; so `rand` needs a seed
+  and to compute data as some function of the coordinate space.
+* There are many random number generation distributions to select from,
+  before we consider that properties (such as $\sigma$) may be functions
+  of the input coordinates.
+
+It may prove simpler in practice to model random generators as block expressions
+than as *Selector* generators.
+
