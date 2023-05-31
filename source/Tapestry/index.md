@@ -63,7 +63,7 @@ to enable aggressive stochastic graph rewrite optimizers.
 To explain the larger vision of Tapestry, we need to explore the uses cases
 of a large system which does not yet exist, which we'll also call Tapestry.
 
-> Note: The motivation for the synecdoche here is taken from SQL, where SQL is both
+> 📝 Note: The motivation for the synecdoche here is taken from SQL, where SQL is both
 > the language and the environment, as their semantics are formal and shared.
 
 Grid-scale datacenters filled with GPU nodes are becoming commonplace;
@@ -2651,24 +2651,26 @@ broadcasting operations; all tensor libraries have a host of features,
 some more convenient than others.
 
 ```python
->> > import torch
->> > batch = 10
->> > input = 2
->> > output = 3
+>>> import torch
+>>> batch = 10
+>>> input = 2
+>>> output = 3
 
->> > x = torch.rand((batch, input)
-                    >> > x.shape
+>>> x = torch.rand((batch, input)
+>>> x.shape
 torch.Size([10, 2]))
->> > x.unsqueeze(-1).shape
+
+>>> x.unsqueeze(-1).shape
 torch.Size([10, 2, 1])
 
->> > w = torch.rand((input, output))
->> > w.shape
+>>> w = torch.rand((input, output))
+>>> w.shape
 torch.Size([2, 3]))
->> > w.unsqueeze(0).shape
+
+>>> w.unsqueeze(0).shape
 torch.Size([1, 2, 3])
 
->> > (x.unsqueeze(-1) * w.unsqueeze(0)).shape
+>>> (x.unsqueeze(-1) * w.unsqueeze(0)).shape
 torch.Size([10, 2, 3])
 ```
 
@@ -6011,7 +6013,7 @@ Defining some terms:
   * a *Tensor View* is a logical slice of tensor-structured data; and
   * a *Selection* is an expression to assemble a *Tensor View* from other tensors.
 
-> Note: a reminder that as these describe sharding operations, Tensor Views
+> 📝 Note: a reminder that as these describe sharding operations, Tensor Views
 > are slices of tensor coordinate space; and a given Tensor View may be
 > indexed at any point in tensor space.
 
