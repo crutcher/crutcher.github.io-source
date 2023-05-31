@@ -5495,6 +5495,29 @@ There are two broad approaches to realize this goal, which will be explored in l
 In practice, these two approaches are isomorphic to each other; though in some situations
 some problems are easier to express in one or the other approach. We'll develop both.
 
+### Tensor View Expressions
+
+TBD
+
+An important (undeveloped) portion of the work concerns tensor geometry expressions;
+which I'm also searching for a better name for.
+
+Given an abstract tensor $X$, produced by a block expression; I may wish to reuse
+that value under some geometric transformation; transposing or reversing dimensions,
+taking a sub-selection of it; or constructing tensor views from concatenations
+and interleavements of other tensor views.
+
+These transformations are entirely mechanical, and while we *could* write block
+operations to achieve these results; it would hide important optimization information
+from transformations, and would require implementations to have a family of "magic"
+block operations to achieve basic goals.
+
+An alternative would be to develop a family of tensor view expressions, which perform
+only geometric manipulations and compositions of other tensor views; the evaluation
+of which could be deferred until pulled by a block operation, or could be reified
+in operation nodes, as the optimizer determined was more efficient.
+
+
 ## Concrete Representation Derivation
 
 This section is devoted to working out the datatypes and algorithms to actually
