@@ -384,8 +384,8 @@ Y &= ReLU(Z)
 %
 \left\\{ \begin{split}
 Z &= \left( \begin{split}
-Linear(X[..k , ...], W, b) \\\\
-Linear(X[k.. , ...], W, b)
+Linear_1(X[..k , ...], W, b) \\\\
+Linear_2(X[k.. , ...], W, b)
 \end{split} \right) \\\\
 Y &= ReLU(Z)
 \end{split} \right\\} \\\\ \\\\
@@ -395,8 +395,8 @@ Y &= ReLU(Z)
 \left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
-Z_1 &= Linear(X_1, W, b) \\\\
-Z_2 &= Linear(X_2, W, b) \\\\
+Z_1 &= Linear_1(X_1, W, b) \\\\
+Z_2 &= Linear_2(X_2, W, b) \\\\
 Z &= \left( \begin{split}
 Z_1 \\\\
 Z_2
@@ -413,8 +413,8 @@ digraph D {
     X_1 [label=<X<sub>1</sub>>, shape=box];
     X_2 [label=<X<sub>2</sub>>, shape=box];
     
-    Linear_1 [label=<Linear>];
-    Linear_2 [label=<Linear>];
+    Linear_1 [label=<Linear<sub>1</sub>>];
+    Linear_2 [label=<Linear<sub>2</sub>>];
     Z_1 [label=<Z<sub>1</sub>>, shape=box];
     Z_2 [label=<Z<sub>2</sub>>, shape=box];
     
@@ -451,8 +451,8 @@ $$\begin{eqnarray\*}
 \left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
-Z_1 &= Linear(X_1, W, b) \\\\
-Z_2 &= Linear(X_2, W, b) \\\\
+Z_1 &= Linear_1(X_1, W, b) \\\\
+Z_2 &= Linear_2(X_2, W, b) \\\\
 Z &= \left( \begin{split} Z_1 \\\\ Z_2 \end{split} \right) \\\\
 Y &= ReLU(Z)
 \end{split} \right\\}
@@ -462,11 +462,11 @@ Y &= ReLU(Z)
 \left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
-Z_1 &= Linear(X_1, W, b) \\\\
-Z_2 &= Linear(X_2, W, b) \\\\
+Z_1 &= Linear_1(X_1, W, b) \\\\
+Z_2 &= Linear_2(X_2, W, b) \\\\
 Y &= \left( \begin{split}
-ReLU(Z_1) \\\\
-ReLU(Z_2)
+ReLU_1(Z_1) \\\\
+ReLU_2(Z_2)
 \end{split} \right)
 \end{split} \right\\} \\\\ \\\\
 %
@@ -475,10 +475,10 @@ ReLU(Z_2)
 \left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
-Z_1 &= Linear(X_1, W, b) \\\\
-Z_2 &= Linear(X_2, W, b) \\\\
-Y_1 &= ReLU(Z_1) \\\\
-Y_2 &= ReLU(Z_2) \\\\
+Z_1 &= Linear_1(X_1, W, b) \\\\
+Z_2 &= Linear_2(X_2, W, b) \\\\
+Y_1 &= ReLU_1(Z_1) \\\\
+Y_2 &= ReLU_2(Z_2) \\\\
 Y &= \left( \begin{split}
 Y_1 \\\\
 Y_2
@@ -494,10 +494,10 @@ digraph D {
     X_1 [label=<X<sub>1</sub>>, shape=box];
     X_2 [label=<X<sub>2</sub>>, shape=box];
     
-    Linear_1 [label=<Linear>];
-    Linear_2 [label=<Linear>];
-    ReLU_1 [label=<ReLU>];
-    ReLU_2 [label=<ReLU>];
+    Linear_1 [label=<Linear<sub>1</sub>>];
+    Linear_2 [label=<Linear<sub>2</sub>>];
+    ReLU_1 [label=<ReLU<sub>1</sub>>];
+    ReLU_2 [label=<ReLU<sub>2</sub>>];
     
     Z_1 [label=<Z<sub>1</sub>>, shape=box];
     Z_2 [label=<Z<sub>2</sub>>, shape=box];
@@ -533,10 +533,10 @@ $$\begin{eqnarray\*}
 \left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
-Z_1 &= Linear(X_1, W, b) \\\\
-Z_2 &= Linear(X_2, W, b) \\\\
-Y_1 &= ReLU(Z_1) \\\\
-Y_2 &= ReLU(Z_2) \\\\
+Z_1 &= Linear_1(X_1, W, b) \\\\
+Z_2 &= Linear_2(X_2, W, b) \\\\
+Y_1 &= ReLU_1(Z_1) \\\\
+Y_2 &= ReLU_2(Z_2) \\\\
 Y &= \left( \begin{split}
 Y_1 \\\\
 Y_2
@@ -548,8 +548,8 @@ Y_2
 \left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
-Y_1 &= ReLU(Linear(X_1, W, B)) \\\\
-Y_2 &= ReLU(Linear(X_2, W, B)) \\\\
+Y_1 &= ReLU_1(Linear_1(X_1, W, B)) \\\\
+Y_2 &= ReLU_2(Linear_2(X_2, W, B)) \\\\
 Y &= \left( \begin{split}
 Y_1 \\\\
 Y_2
@@ -561,8 +561,8 @@ Y_2
 \left\\{ \begin{split}
 X_1 &= X[.. k, ...] \\\\
 X_2 &= X[k .., ...] \\\\
-Y_1 &= (Linear \Rightarrow ReLU)(X_1, W, b) \\\\
-Y_2 &= (Linear \Rightarrow ReLU)(X_2, W, b) \\\\
+Y_1 &= (Linear \Rightarrow ReLU)_1(X_1, W, b) \\\\
+Y_2 &= (Linear \Rightarrow ReLU)_2(X_2, W, b) \\\\
 Y &= \left( \begin{split}
 Y_1 \\\\
 Y_2
@@ -581,8 +581,8 @@ digraph D {
     Y_1 [label=<Y<sub>1</sub>>, shape=box];
     Y_2 [label=<Y<sub>2</sub>>, shape=box];
     
-    Op_1 [label="Linear => ReLU"];
-    Op_2 [label="Linear => ReLU"];
+    Op_1 [label=<Linear =&gt; ReLU<sub>1</sub>>];
+    Op_2 [label=<Linear =&gt; ReLU<sub>2</sub>>];
     
     X -> X_1;
     X -> X_2;
