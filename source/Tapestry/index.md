@@ -250,7 +250,7 @@ in lists, arrays, or key/value mapped dictionaries:
 These environments do not model tensor-indexed values, or have effective
 mechanisms for distributing dataflow and functional dependencies across
 polyhedrally typed operations (operations typed in terms of the shape
-co-variance of their inputs and outputs); a new formalism is needed to effectively
+coupled ranging of their inputs and outputs); a new formalism is needed to effectively
 describe operator injection into distributed tensor environments.
 
 <!-- TODO: image / explanation for polyhedrally typed functions -->
@@ -357,7 +357,7 @@ However, quite a few pieces of the current system pose problems for these *smart
 
 * the existing APIs have many entry points;
 * the entry points don't all follow consistent semantics;
-* the apis were not written to enforce a stable co-variance between parameters and results;
+* the apis were not written to enforce a stable coupled ranging between parameters and results;
 * the tensor APIs are data/shape polymorphic;
 * and python itself is obnoxious to trace symbolically
 
@@ -677,14 +677,14 @@ digraph D {
 ```
 
 These series of transformations are possible because we know (or assume) details about
-the structural co-variance of the inputs and outputs to the operations $Linear$ and $ReLU$.
+the structural coupled ranging of the inputs and outputs to the operations $Linear$ and $ReLU$.
 
 ### Restricting to Shardable Operators
 
 We cannot assume that any arbitrary operation from a collection of named tensors (the parameters)
-to a collection of named tensors (the results) will have cleanly explicable structural co-variance
+to a collection of named tensors (the results) will have cleanly explicable structural coupled ranging
 (the relationship between the data in the input cells and the data in the output cells);
-but we can observe that the tractability and explicability of the structural co-variance of operators
+but we can observe that the tractability and explicability of the structural coupled ranging of operators
 bears directly upon our ability to design mechanical sharding and graph-rewrite algorithms over
 expression graphs.
 
@@ -1222,7 +1222,7 @@ digraph G {
 }
 ```
 
-Given a block $Operation$, and knowledge about the structural co-variance of its inputs
+Given a block $Operation$, and knowledge about the structural coupled ranging of its inputs
 and outputs, we seek an index space, and a collection of projection functions $P_T(i)$
 for each input or output $tensor$, such that we can mechanically enumerate sub-problems
 and re-assemble the results.
@@ -2595,7 +2595,7 @@ Matmul(X_{[batch,in]}, W_{[in,out]}) := \left(
 
 > 📝 Note: careful readers may note that there exists a large body of work dedicated to the question of
 > how to implement $Matmul$ more efficiently. The point of this exercise is to use $Linear$ and $Matmul$
-> as a lens to examine data covariance in sharding block operations; and a naive treatment of $Matmul$
+> as a lens to examine data coupled ranging in sharding block operations; and a naive treatment of $Matmul$
 > is useful to these needs.
 > \
 > In a fully developed tensor expression sharding environment, it could be useful to hoist some
