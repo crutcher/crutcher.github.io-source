@@ -353,23 +353,40 @@ However, quite a few pieces of the current system pose problems for these *smart
 If, as an exercise, we drop any notion of compatibility with existing `numpy`-derived
 apis; I'm interested in the question of how far we can get?
 
-#### Expanding a Toy Example
+When designing new evaluation languages, it is important to start with informal semantics that clearly and simply
+express the concepts we want to convey. We should also consider operational requirements, such as desired resource
+usage (CPU, memory, networks, etc.). From there, we can look for systems of formal semantics that use established
+building blocks in math and computer science. This approach helps us achieve our design goals as closely as possible.
 
-Designing new evaluation languages requires that we work backwards from informal semantics
-(things *similar* to things we want to be able to say) and operational requirements
-(things we want to be true of resource usage: cpu, memory, networks, etc); and search
-for systems of formal semantics constructed from building blocks already known to math
-and computer science, which come closest to satisfying the design goals.
+A functor embedding provides a formal way to describe how one evaluation system can be embedded in another in a
+transparent and correct way. This technique is commonly used to ensure that a program designed for one system can be
+used on another without issues. It is important to note that this process requires a deep understanding of both systems
+to ensure embedding is done correctly. A functor embedding can be a useful tool for developers, allowing them to reuse
+code and avoid rewriting entire programs from scratch. It can also help simplify the development process by reducing the
+time and effort required to create new programs. Overall, a functor embedding is a powerful technique for streamlining
+development and ensuring programs are efficient and effective.
 
-I like to cast much of this as searching for functor embeddings with a given set of
-properties, because if we can find a functor embedding into an abstract execution
-environment with semantics similar to the machine environments we wish to target;
-translation from the functor embedding to the actual machines tends to be straightforward.
+We can think of this process as searching for functor embeddings that have certain properties. When we find a functor
+embedding that aligns with an abstract execution environment while having semantics similar to the machine environments
+we want to target, translating from the functor embedding to the actual machines is often easy.
 
-It is frequently the case that, in searching for good embeddings, we'll find a system
-of formal semantics which is *close* to the informal semantics we started out with as a
-goal. We could force alignment, or we could adjust our goals; and exploit the machinery
-provided by the formal semantic system we've found. I tend to prefer the later approach.
+While searching for good embeddings, we may come across a system of formal semantics that is somewhat close to our
+original informal semantics. We can either force alignment or adjust our goals and take advantage of the formal semantic
+system that we’ve found. Personally, I prefer the latter approach.
+
+This design approach is particularly useful when creating new programming languages or evaluating the performance of
+existing ones. By starting with an understanding of informal semantics and operational requirements, we can ensure that
+our formal semantics are well-suited to the task at hand.
+
+It is important to keep in mind the target machines for our evaluation languages as we search for functor embeddings.
+Finding an embedding that aligns well with an abstract execution environment similar to our target machines can greatly
+simplify the translation process.
+
+In cases where the formal semantics we discover are not a perfect match for our original informal semantics, we have two
+options: we can either force alignment or adjust our goals. In my experience, adjusting our goals to take advantage of
+the formal semantic system we've found is often the most efficient approach.
+
+#### Expanding a Linear Example
 
 Consider a tensor expression in a toy language, call it $Expr$; this particular expression
 is motivated by a fully connected neural network layer, but it could be anything:
