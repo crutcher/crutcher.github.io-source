@@ -27,18 +27,29 @@ the pragmatics of the current approaches.
 This is a large project, it's far too big to write in one go and have the results be readable; and
 your efforts to review and provide feedback are extremely welcome.
 
- * Don't understand a section, description, or diagram?
-   * *Great!*, please tell me about it!
+I'm looking for help making this material accessible to the widest possible audience. I'm particularly
+interested in feedback on:
 
-The goal is that most people with a light technical background should be able to follow and understand
-90% of this paper, and while that remains untrue, there's still work needed to be done. I've put a
-good deal of effort into diagrams and graphs to explain complex topics, but those diagrams and charts
-were designed for what I thought was going to be useful; making contact with what you think is useful,
-and rewriting and redrawing diagrams to make them easier (or in some cases, even possible) to follow
-is the goal of asking for reviewers.
+ * Sections which need to be expanded or added;
+ * Terminology used without sufficient introduction;
+ * Graphs or Charts which are confusing, or need additional discussion or callouts;
+ * And any awkward or confusing wording.
 
-I am of the opinion that this is a project which requires no *new* computer science;
+I am of the professional opinion that this project requires no *new* computer science;
 just the careful and methodical application of pieces from a number of sub-fields.
+I believe that challenges the industry has faced iterating on this problem are pragmatic
+issues in the evolution of the software stacks, and not fundamentally misunderstood
+problems.
+
+Say at one end of the system, we want to do A; and A (math) can be done in terms of B;
+B can be done in terms of C; and C can be done in terms of D (distributed systems scheduling).
+It's not that we don't know how to do A, B, C, and D; or that no one has done
+A and B, B and C, or C and D together; it's that most systems that have
+incrementally implemented A, then added B, then added C, then added D have
+then encountered constraints on A and D, which derive from each other, that
+were not visible from A or D alone; and by the time these large systems were
+in place, the issues were too expensive to fix. If we start off knowing we want the full stack, and defer building
+something "useful and quick" until the math is fully resolved, we can avoid that design problem.
 
 Alternatively, if you want to help *write* some of this, or help with implementation; again, I'd be 
 ecstatic.
