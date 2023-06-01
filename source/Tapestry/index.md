@@ -1,5 +1,5 @@
 ---
-title: "Tapestry: Shardable Tensor Expression Environments"
+title: "Tapestry: Distributed Tensor Expression Environments"
 date: 2022-12-16 10:32:05
 tags: ["tensor expressions", "tapestry"]
 mathjax: true
