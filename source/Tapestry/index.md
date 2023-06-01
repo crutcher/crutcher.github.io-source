@@ -307,11 +307,8 @@ which includes a great deal of modern engineering and physical sciences applicat
 
 ## Evaluation Theory Derivation
 
-The Evaluation Theory Derivation section will focus on incrementally unfolding and deriving a bottom-up theory
-of operator evaluation and sharding from first principles.
-
-An as-yet-unwritten section on Formal Semantics will present the same material as a completed
-top-down design; followed on a Mechanics section on implementing the Formal Semantics.
+This section incrementally derives the formal semantics required by tapestry
+from a bottom-up first-principles theory of operator evaluation and sharding.
 
 ### The Distributed Tensor Expression Problem
 
