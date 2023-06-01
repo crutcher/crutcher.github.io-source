@@ -312,6 +312,15 @@ from a bottom-up first-principles theory of operator evaluation and sharding.
 
 ### The Distributed Tensor Expression Problem
 
+> TODO: unfold this slower.
+>  * describe tensor selector expressions first
+>    * simple copies
+>    * slices, permutations, etc.
+>  * describe a simpler block operation first
+>    * addition
+>    * multiplication
+>    * Linear
+
 The tensor evaluation language problem:
 
 ```
