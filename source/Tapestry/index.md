@@ -9,22 +9,126 @@ mathjax: true
 
 <img src="/Tapestry/tapestry.pastel.svg" width="200"/>
 
-<!-- toc -->
+## A Note For Reviewers
 
-## Status
-
-> Draft: Document Completion Progress ~= 15%
-
-This is an in-progress work, to define the background material and theory for an
+This is an in-progress draft, to define the background material and theory for an
 optimizing tensor expression compilation and evaluation toolchain;
 As such, it's incomplete; and will grow as I expand and firm up the representation
 of the ideas.
 
-## Abstract
+What's the TL;DR?
 
-This document represents my living attempt to describe work I'm doing in research
-on the design and implementation of shardable tensor expression languages. It's going
-to take time to fill all the way in, and this is my roll-up single entry point document.
+ * Small, easy to write programs which use 100s of GPUs to solve large problems efficiently.
+
+This is the most expensive problem in computer science that I know of; we can conservatively estimate
+that 1/2 to 3/4 of current big-compute and AI costs are simply wasted by the inefficiencies of
+the pragmatics of the current approaches.
+
+This is a large project, it's far too big to write in one go and have the results be readable; and
+your efforts to review and provide feedback are extremely welcome.
+
+ * Don't understand a section, description, or diagram?
+   * *Great!*, please tell me about it!
+
+The goal is that most people with a light technical background should be able to follow and understand
+90% of this paper, and while that remains untrue, there's still work needed to be done. I've put a
+good deal of effort into diagrams and graphs to explain complex topics, but those diagrams and charts
+were designed for what I thought was going to be useful; making contact with what you think is useful,
+and rewriting and redrawing diagrams to make them easier (or in some cases, even possible) to follow
+is the goal of asking for reviewers.
+
+I am of the opinion that this is a project which requires no *new* computer science;
+just the careful and methodical application of pieces from a number of sub-fields.
+
+Alternatively, if you want to help *write* some of this, or help with implementation; again, I'd be 
+ecstatic.
+
+Thank you for efforts to make this more readable - Crutcher
+
+### Draft Stages
+
+*Tapestry* will be built out in the following stages of work, which correspond to a series
+of technical embeddings going deeper into the stack, and will remain as rewrite layers.
+
+When this stack is *semantically* complete, even in a preview form; we can begin to
+preview applications written in the block operation graph language.
+
+From this stage onward, development will bifurcate:
+
+* Applications and extensions written *above* the block operation language; and
+* Optimization research and operational implementation work done *below* the block operation language.
+
+The goal is:
+
+> Provide an existence proof that a provably shardable formal language is possible
+> (we can prove that it *can* be made fast); then make it easy to program for to
+> get more help; then make it fast.
+
+## Introduction
+
+This whitepaper describes "Tapestry", a concrete theory and system for implementing "distributed tensor expression
+evaluators". In this context, "distributed" means targeting resources and execution on multiple computers
+simultaneously. A "tensor" is a multidimensional array, consisting of a single number, `2`, an array of numbers,
+`[3.5, 2.5]`, a matrix, `[[2, 3], [4, 5]]`, or a larger multidimensional array. "Expressions" are operations
+on one or more tensors, which produce new tensors. Evaluators are systems for running expressions and generating
+values.
+
+For example, the following expressions produce the corresponding results:
+
+| Expression      | Result |
+|-----------------|--------|
+| 1 + 2           | 3      |
+| [3, 4] + [1, 1] | [4, 5] |
+| 2 * [1, 0]      | [2, 0] |
+| abs([3, -4])    | [3, 4] |
+
+Tapestry allows us to describe mathematical operations that are relatively simple to author, but may describe very large
+amounts of data and operations. However, implementing these operations requires orchestrating many data transfers and
+batched operations, which can be difficult and inefficient.
+
+The cost of implementing large distributed mathematics dominates the costs of modern AI and computational modeling. This
+is true for applications such as fluid flow or weather simulation and protein modeling. Both the development costs of
+the programs and the resource costs of computers running inefficient implementations of large math evaluators contribute
+to this problem.
+
+By contrast, `SQL` expression evaluators allow the manipulation and querying of vast amounts of information distributed
+over databases that span hundreds of machines. `SQL` achieves this by establishing a strong formal declarative abstract
+language, where users can describe the operations they wish to perform in a language that hides the pragmatics, but does
+so in such a way that the `SQL` evaluation environments can effectively transform, optimize, and shard those
+descriptions into efficient underlying pragmatic schedules and execution plans.
+
+Tapestry is a proposal for such a formal declarative abstract language, covering expressions consuming and producing
+tensor values. The programming surface, the abstract formal language, which users would read, write, and interact with,
+is a relatively small surface, similar to `SQL`. However, the definitions of the semantics of the operators have been
+chosen to enable aggressive and *correct* (value preserving) optimization of these expressions into efficient
+distributed pragmatics.
+
+This whitepaper covers the abstract tapestry expression language, the derivation of the formal semantics of that
+language, and the concrete pragmatics of implementing an evaluator for that language.
+
+### Table of Contents
+
+<!-- toc -->
+
+
+## Background and Related Work
+
+This document describes my ongoing research on the design and implementation of shardable tensor expression languages.
+It serves as a single entry point for the project, which will take some time to fully develop.
+
+This work is related to existing tensor environments and compilers, including JAX, MLIR, and PyTorch Tau. It also builds
+upon ideas from other domains, such as data pipeline languages like Apache Spark and Google Dataflow, graph-rewriting
+functional languages like Haskell and OCaml, and SQL.
+
+Existing work in this field has mainly focused on improving the distribution and performance of existing languages and
+environments. However, that work is constrained by the semantics of those environments and backends. Distributed work
+needs to retain the look and feel of existing data science languages, while local kernel work focuses heavily on
+exploiting specific GPU/TPU hardware.
+
+In contrast, this work takes a bottom-up, shardable-by-construction approach to the distributed tensor expression
+problem. Each core operation is designed to be shardable, as is each operation composition and each graph rewrite. The
+goal is to derive a semantic core with the fewest possible prior operators and constraints, enabling the use of
+aggressive stochastic graph rewrite optimizers.
 
 This is work in the same space as existing tensor environments and compilers:
 
@@ -42,23 +146,7 @@ It also extends many ideas from existing environments:
     * [OCaml](https://ocaml.org/)
 * And of course, [SQL](https://en.wikipedia.org/wiki/SQL)
 
-Existing work in the space has focused on making existing languages distribute well,
-or on getting the best performance out of tensor backends. The work has been constrained
-by the semantics of the existing environments and backends; the distributed work has
-been heavily constrained by the needs to retain environments that look similar to
-existing datascience languages, and the local kernel work has focused heavily on
-maximally exploiting the specific GPU/TPU hardware target languages.
-
-This work focuses on a bottom-up, shardable-by-construction approach
-to the distributed tensor expression problem
-(each core operations can be proven to be shardable, each operation
-composition can be proven to be shardable, and each graph-rewrite can
-be proven to be equivalent)
-; deriving and explaining
-a semantic core with the fewest prior operators and constraints, designed
-to enable aggressive stochastic graph rewrite optimizers.
-
-## The Tapestry Vision
+### The Vision
 
 To explain the larger vision of Tapestry, we need to explore the uses cases
 of a large system which does not yet exist, which we'll also call Tapestry.
@@ -199,71 +287,23 @@ An effective tapestry environment sufficient to host finite element simulations
 would permit accelerated research into anything built upon finite element simulations;
 which includes a great deal of modern engineering and physical sciences applications.
 
-## The Tapestry Plan
 
-### Overview
+## Expression Language Definition
 
-I'm developing out a project in defining the bottom-up sharding and scheduling of grid-scale
-tensor expression languages; its name is "Tapestry", for the way expression
-value flow graphs weave between execution contexts.
+> TBD: collect a definition-oriented description of the choices derived in the derivation section here.
 
-I am of the opinion that this is a project which requires no *new* computer science;
-just the careful and methodical application of pieces from a number of sub-fields.
-
-As there are many projects exploring how to take existing evaluation environments
-and back-fit sharding machinery too them, and as those projects are continuing to
-make reasonable progress, I feel that there's no short-term urgency to solve this;
-so I'm taking a first-principles formal language design route.
-
-* We don't have users, and won't have them till the whole stack works. We won't have
-  to worry about maintaining semantics or operational decisions when problems are
-  encountered with them.
-
-* We will have some trouble acquiring people to help; everything is going to
-  appear *very* abstract until the functional machinery is in-place.
-
-### Stages
-
-*Tapestry* will be built out in the following stages of work, which correspond to a series
-of technical embeddings going deeper into the stack, and will remain as rewrite layers.
-
-* Tensor Valued Block Operation Graph Language
-* Block Operation Index Projection Sharding Graph Language
-* Block Operation Substitution Rewrite Graph Language
-* Block Operation Fusion Rewrite Graph Language
-* Block Operation Rewrite Sharding Optimizer
-    * Configurable Execution Cost Model
-    * Pareto-Front Stochastic Search Optimizer
-* Block Shard Operational Embedding
-* Block Shard Grid Host
-    * Shard Scheduling
-    * Shard Metric Instrumentation
-
-When this stack is *semantically* complete, even in a preview form; we can begin to
-preview applications written in the block operation graph language.
-
-From this stage onward, development will bifurcate:
-
-* Applications and extensions written *above* the block operation language; and
-* Optimization research and operational implementation work done *below* the block operation language.
-
-The goal is:
-
-> Provide an existence proof that a provably shardable formal language is possible
-> (we can prove that it *can* be made fast); then make it easy to program for to
-> get more help; then make it fast.
-
-### References
-
-This is an active field of research for me; I believe that index projection functions are a viable solution to this,
-and I've done a fair amount of background work on large transform environments.
-
-* [Tapestry Tensor Expressions](https://github.com/crutcher/tapestry)
-    - my current toy environment.
-* [3Scan Crystal Pipeline](https://docs.google.com/presentation/d/1KGlawW9iZnI7xN-X-Q5y4h8aBqgu6bh4pA_0Siq321E/edit?usp=sharing)
-    - a slideshow of previous work we did on large-scale tensor expression environments.
-* [MLIR Polyhedral Types](https://mlir.llvm.org/docs/Dialects/Affine/)
-    - the current LLVM work on polyhedral types for MLIR.
+ * Tensor
+   * Tensor Slice
+   * Tensor View
+ * Expressions
+   * Selectors / View Expressions
+     * View Expression Shards
+   * Block Expressions
+     * Block Expression Shards
+ * Expression Signatures
+ * Cost Models
+   * Tensor Costs
+   * Marginal Costs
 
 ## Evaluation Theory Derivation
 
@@ -6698,11 +6738,7 @@ It is important to note that `rand` is an entire sub-category of problems:
 It may prove simpler in practice to model random generators as block expressions
 than as *Selector* generators.
 
-## Formal Evaluation Theory
-
-TBD - A declarative summary of the choices selected in the derivation section.
-
-## Concrete Representation Derivation
+## Implementation Mechanics
 
 This section is devoted to working out the datatypes and algorithms to actually
 implement the math described in the evaluation theory. The sections are seperated
