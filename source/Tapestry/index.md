@@ -93,9 +93,22 @@ For example, the following expressions produce the corresponding results:
 | 2 * [1, 0]      | [2, 0] |
 | abs([3, -4])    | [3, 4] |
 
+An example of a higher dimensional tensor can be found in a batch of images. Suppose we have
+100 RGB images, each 256 x 256 pixels, each pixel containing 3 values (the red, green, and blue
+values of RGB). It would be natural to represent
+this batch as a tensor, though we might choose to do so in different ways:
+
+* `[100, 256, 256, 3]` - as batch, height, width, and color channel.
+* `[100, 3, 256, 256]` - as batch, color channel, height, and width.
+
 Tapestry allows us to describe mathematical operations that are relatively simple to author, but may describe very large
 amounts of data and operations. However, implementing these operations requires orchestrating many data transfers and
 batched operations, which can be difficult and inefficient.
+
+For instance, say we have a tensor `X` containing 10 million RGB images, each 1024 x 1024; and we'd like to convert it from
+integer valued pixels (`0 - 255`) to floating point valued pixels (`0.0 - 1.0`) and store it in a tensor `Y`.
+Abstractly, this is as simple as `Y := float(X) / 255.0`; but `X` is 32 TB of data, and `Y`, using something like `float16`,
+is 62 TB of data.
 
 The cost of implementing large distributed mathematics dominates the costs of modern AI and computational modeling. This
 is true for applications such as fluid flow or weather simulation and protein modeling. Both the development costs of
