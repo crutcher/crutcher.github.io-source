@@ -735,7 +735,7 @@ B[2, 1] = data[5] = 60
 | *B[:, 1]* | 30      | 60      |  
 
 This offset location projection follows the general form a discrete affine projection,
-$Ax + b$ (or $strides coords + offset$), where we're mapping from some number of dimensions
+$Ax + b$ (or $strides \cdot coords + offset$), where we're mapping from some number of dimensions
 in the input coordinate space to a flat location in some buffer space.
 As such, there are many mechanical transformations which can be applied to this offset
 mapping to produce different effects without changing or copying the underlying buffer, for example:
