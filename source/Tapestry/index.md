@@ -11,9 +11,10 @@ mathjax: true
 
 ## A Note For Reviewers
 
-| TODO                                                        |
-|-------------------------------------------------------------|
-| Rewrite all graphs to flow from definitions to dependencies |
+| TODO                                                                                                  |
+|-------------------------------------------------------------------------------------------------------|
+| Rewrite all graphs to flow from definitions to dependencies                                           |
+| Unify language of value-producing operators: block expression, value expression, block operator, etc. |
 
 This is an in-progress draft, to define the background material and theory for an
 optimizing tensor expression compilation and evaluation toolchain;
@@ -334,13 +335,19 @@ which includes a great deal of modern engineering and physical sciences applicat
    * Tensor Costs
    * Marginal Costs
 
-## Evaluation Theory Derivation
+## Expression Evaluation Theory Derivation
 
 The goal of this section is to incrementally refine informal operational semantics
 over tensor expressions towards formal semantics. We're motivated by math we'd like to
 be able to express simply, and have "The Right Thing" happen.
 
-For instance, consider the addition of two large tensors `A` and `B`:
+We focus on defining things in terms of "expressions", rather than "processes";
+as processes describe what to do, while expressions define values. All expression
+definitions can be rewritten mechanically as process definitions, but the reverse
+is not true (and the proof of that is an important result in computer science
+known as the "halting problem").
+
+For instance, consider the an expression describing the addition of two large tensors `A` and `B`:
 ```
 C = A + B
 ```
@@ -756,6 +763,9 @@ view transformations have no underlying costs.
 > transfers, at which point the engineering resources necessary to
 > model the preferred layout in the solvers should track with system
 > benefits.
+> 
+> When we care about the speed impact, we'll be able to afford solving
+> it without a total rewrite.
 
 #### Squeeze, Unsqueeze, and Broadcast
 
@@ -932,15 +942,22 @@ Consider one functional dependency interpretation of our toy example:
 
 ```graphviz
 digraph D {
-    rankdir=LR;
-    X, W, b, Z [shape=box];
+    rankdir=RL;
+    X, W, b, Z, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
+    Linear, ReLU [
+        shape=rarrow,
+        margin=0.25,
+        style=filled,
+        fillcolor="#E5E8E8",
+    ];
     
-    X -> Linear;
-    W -> Linear;
-    b -> Linear;
-    Linear -> Z;
-    Z -> ReLU;
-    ReLU -> Y;
+    Linear -> X;
+    Linear -> W;
+    Linear -> b;
+    
+    Z -> Linear;
+    ReLU -> Z;
+    Y -> ReLU;
 }
 ```
 
@@ -988,35 +1005,75 @@ Y &= ReLU(Z)
 
 ```graphviz
 digraph D {
-    rankdir=LR;
-    X, W, b, Z, Y [shape=box];
+    rankdir=RL;
+    X, X_1, X_2, W, b, Z, Z_1, Z_2, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
+    Linear_1, Linear_2, ReLU [
+        shape=rarrow,
+        margin=0.25,
+        style=filled,
+        fillcolor="#E5E8E8",
+    ];
     
-    X_1 [label=<X<sub>1</sub>>, shape=box];
-    X_2 [label=<X<sub>2</sub>>, shape=box];
+    X_1 [label=<X<sub>1</sub>>];
+    X_2 [label=<X<sub>2</sub>>];
     
     Linear_1 [label=<Linear<sub>1</sub>>];
     Linear_2 [label=<Linear<sub>2</sub>>];
-    Z_1 [label=<Z<sub>1</sub>>, shape=box];
-    Z_2 [label=<Z<sub>2</sub>>, shape=box];
+    Z_1 [label=<Z<sub>1</sub>>];
+    Z_2 [label=<Z<sub>2</sub>>];
     
-    X -> X_1;
-    X -> X_2;
+    SX0 [
+      label=<slice[:, 0:k]>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
+    SX1 [
+      label=<slice[:, k:0]>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
     
-    X_1 -> Linear_1;
-    W -> Linear_1;
-    b -> Linear_1;
-    Linear_1 -> Z_1;
+    SX0 -> X;
+    SX1 -> X;
     
-    X_2 -> Linear_2;
-    W -> Linear_2;
-    b -> Linear_2;
-    Linear_2 -> Z_2;
+    X_1 -> SX0;
+    X_2 -> SX1;
     
-    Z_1 -> Z;
-    Z_2 -> Z;
+    Linear_1 -> X_1;
+    Linear_1 -> W;
+    Linear_1 -> b;
+    Z_1 -> Linear_1;
     
-    Z -> ReLU;
-    ReLU -> Y;
+    Linear_2 -> X_2;
+    Linear_2 -> W;
+    Linear_2 -> b;
+    Z_2 -> Linear_2;
+    
+    SZ [
+      label=<
+         <table border="0" cellspacing="0" cellpadding="0">
+           <tr><td>concat</td></tr>
+           <tr><td>dim=0</td></tr>
+           </table>
+      >,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
+    SZ -> Z_1;
+    SZ -> Z_2;
+    Z -> SZ;
+    
+    ReLU -> Z;
+    Y -> ReLU;
 }
 ```
 
@@ -1069,41 +1126,83 @@ Y_2
 
 ```graphviz
 digraph D {
-    rankdir=LR;
-    X, W, b, Y [shape=box];
+    rankdir=RL;
+    X, X_1, X_2, W, b, Z_1, Z_2, Y, Y_1, Y_2 [shape=box3d, fillcolor="#d0d0ff", style=filled];
+    Linear_1, Linear_2, ReLU_1, ReLU_2 [
+        shape=rarrow,
+        margin=0.25,
+        style=filled,
+        fillcolor="#E5E8E8",
+    ];
     
-    X_1 [label=<X<sub>1</sub>>, shape=box];
-    X_2 [label=<X<sub>2</sub>>, shape=box];
+    SX1 [
+      label=<slice[:, 0:k]>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
+    SX2 [
+      label=<slice[:, k:0]>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
+    
+    SX1 -> X;
+    SX2 -> X;
+    
+    X_1 [label=<X<sub>1</sub>>];
+    X_2 [label=<X<sub>2</sub>>];
+    
+    X_1 -> SX1;
+    X_2 -> SX2;
     
     Linear_1 [label=<Linear<sub>1</sub>>];
     Linear_2 [label=<Linear<sub>2</sub>>];
     ReLU_1 [label=<ReLU<sub>1</sub>>];
     ReLU_2 [label=<ReLU<sub>2</sub>>];
     
-    Z_1 [label=<Z<sub>1</sub>>, shape=box];
-    Z_2 [label=<Z<sub>2</sub>>, shape=box];
-    Y_1 [label=<Y<sub>1</sub>>, shape=box];
-    Y_2 [label=<Y<sub>2</sub>>, shape=box];
+    Z_1 [label=<Z<sub>1</sub>>];
+    Z_2 [label=<Z<sub>2</sub>>];
+    Y_1 [label=<Y<sub>1</sub>>];
+    Y_2 [label=<Y<sub>2</sub>>];
     
-    X -> X_1;
-    X -> X_2;
+    Linear_1 -> X_1;
+    Linear_1 -> W;
+    Linear_1 -> b;
+    Z_1 -> Linear_1;
+    ReLU_1 -> Z_1;
+    Y_1 -> ReLU_1;
     
-    X_1 -> Linear_1;
-    W -> Linear_1;
-    b -> Linear_1;
-    Linear_1 -> Z_1;
-    Z_1 -> ReLU_1;
-    ReLU_1 -> Y_1;
+    Linear_2 -> X_2;
+    Linear_2 -> W;
+    Linear_2 -> b;
+    Z_2 -> Linear_2;
+    ReLU_2 -> Z_2;
+    Y_2 -> ReLU_2;
     
-    X_2 -> Linear_2;
-    W -> Linear_2;
-    b -> Linear_2;
-    Linear_2 -> Z_2;
-    Z_2 -> ReLU_2;
-    ReLU_2 -> Y_2;
+    SY [
+      label=<
+         <table border="0" cellspacing="0" cellpadding="0">
+           <tr><td>concat</td></tr>
+           <tr><td>dim=0</td></tr>
+           </table>
+      >,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
     
-    Y_1 -> Y;
-    Y_2 -> Y;
+    SY -> Y_1;
+    SY -> Y_2;
+    
+    Y -> SY;
 }
 ```
 
@@ -1153,33 +1252,75 @@ Y_2
 
 ```graphviz
 digraph D {
-    rankdir=LR;
-    X, W, b, Y [shape=box];
+    rankdir=RL;
+    X, X_1, X_2, W, b, Y, Y_1, Y_2 [shape=box3d, fillcolor="#d0d0ff", style=filled];
+    Op_1, Op_2 [
+        shape=rarrow,
+        margin=0.25,
+        style=filled,
+        fillcolor="#E5E8E8",
+    ];
     
-    X_1 [label=<X<sub>1</sub>>, shape=box];
-    X_2 [label=<X<sub>2</sub>>, shape=box];
+    SX1 [
+      label=<slice[:, 0:k]>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
+    SX2 [
+      label=<slice[:, k:0]>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
     
-    Y_1 [label=<Y<sub>1</sub>>, shape=box];
-    Y_2 [label=<Y<sub>2</sub>>, shape=box];
+    SX1 -> X;
+    SX2 -> X;
+    
+    X_1 [label=<X<sub>1</sub>>];
+    X_2 [label=<X<sub>2</sub>>];
+    
+    X_1 -> SX1;
+    X_2 -> SX2;
     
     Op_1 [label=<Linear =&gt; ReLU<sub>1</sub>>];
     Op_2 [label=<Linear =&gt; ReLU<sub>2</sub>>];
     
-    X -> X_1;
-    X -> X_2;
+    Y_1 [label=<Y<sub>1</sub>>];
+    Y_2 [label=<Y<sub>2</sub>>];
     
-    X_1 -> Op_1;
-    W -> Op_1;
-    b -> Op_1;
-    Op_1 -> Y_1;
+    Op_1 -> X_1;
+    Op_1 -> W;
+    Op_1 -> b;
+    Y_1 -> Op_1;
     
-    X_2 -> Op_2;
-    W -> Op_2;
-    b -> Op_2;
-    Op_2 -> Y_2;
+    Op_2 -> X_2;
+    Op_2 -> W;
+    Op_2 -> b;
+    Y_2 -> Op_2;
     
-    Y_1 -> Y;
-    Y_2 -> Y;
+    SY [
+      label=<
+         <table border="0" cellspacing="0" cellpadding="0">
+           <tr><td>concat</td></tr>
+           <tr><td>dim=0</td></tr>
+           </table>
+      >,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
+    
+    SY -> Y_1;
+    SY -> Y_2;
+    
+    Y -> SY;
 }
 ```
 
@@ -1207,8 +1348,6 @@ For any given $Operator$, we need additional information:
   fused back into the same results?
 * How do the shards share resources (which sharding choices are more or less expensive)?
 
-But we also need to ensure that connective expression language between operators has the same properties.
-
 Recall the toy tensor expression in $Expr$:
 
 ```
@@ -1219,15 +1358,22 @@ Y = ReLU(Z)
 
 ```graphviz
 digraph D {
-    rankdir=LR;
-    X, W, b, Z [shape=box];
+    rankdir=RL;
+    X, W, b, Z, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
+    Linear, ReLU [
+        shape=rarrow,
+        margin=0.25,
+        style=filled,
+        fillcolor="#E5E8E8",
+    ];
     
-    X -> Linear;
-    W -> Linear;
-    b -> Linear;
-    Linear -> Z;
-    Z -> ReLU;
-    ReLU -> Y;
+    Linear -> X;
+    Linear -> W;
+    Linear -> b;
+    
+    Z -> Linear;
+    ReLU -> Z;
+    Y -> ReLU;
 }
 ```
 
@@ -1243,7 +1389,7 @@ for any given $Operator$, we'll have additional information:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     x [
         shape="plain",
@@ -1293,7 +1439,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     b [
@@ -1331,21 +1477,20 @@ digraph G {
             </table>
         >,
     ];
-
-
-    x -> op;
-    op -> y;
-
-    w -> op;
-    b -> op;
+    
+    op -> x;
+    y -> op;
+    
+    op -> w;
+    op -> b;
 }
 ```
 
-Consider the abstract one-$Operator$ flow graph:
+Consider the abstract one-$Operator$ expression graph:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     A [
         shape="plain",
@@ -1395,7 +1540,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
     
     X [
@@ -1444,10 +1589,10 @@ digraph G {
         >,
     ];
     
-    A -> op;
-    B -> op;
-    op -> X;
-    op -> Y;
+    op -> A;
+    op -> B;
+    X -> op;
+    Y -> op;
 }
 ```
 
@@ -1456,7 +1601,8 @@ re-assemble the results mechanically, and produce the same value as though the o
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
+    A1, A2, B1, B2, X1, X2, Y1, Y2 [shape=box3d, fillcolor="#d0d0ff", style=filled];
 
     A [
         shape="plain",
@@ -1506,14 +1652,14 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
     op2 [
         label=<Operator<sub>2</sub>>,
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
     
     X [
@@ -1562,15 +1708,84 @@ digraph G {
         >,
     ];
     
-    A -> op1;
-    B -> op1;
-    op1 -> X;
-    op1 -> Y;
+    SA1 [
+      label=<slice>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
+    SA2 [
+      label=<slice>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
+    SB1 [
+      label=<slice>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
+    SB2 [
+      label=<slice>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
     
-    A -> op2;
-    B -> op2;
-    op2 -> X;
-    op2 -> Y;
+    SX [
+      label=<concat>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
+    SY [
+      label=<concat>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
+    
+    SA1 -> A;
+    SA2 -> A;
+    A1 -> SA1;
+    A2 -> SA2;
+    
+    SB1 -> B;
+    SB2 -> B;
+    B1 -> SB1;
+    B2 -> SB2;
+    
+    op1 -> A1;
+    op1 -> B1;
+    X1 -> op1;
+    Y1 -> op1;
+    
+    op2 -> A2;
+    op2 -> B2;
+    X2 -> op2;
+    Y2 -> op2;
+    
+    SX -> X1;
+    SX -> X2;
+    
+    SY -> Y1;
+    SY -> Y2;
+    
+    X -> SX;
+    Y -> SY;
 }
 ```
 
@@ -1596,7 +1811,7 @@ to count all sub-problems of $Linear$:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -1674,7 +1889,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     b [
@@ -1713,12 +1928,10 @@ digraph G {
         >,
     ];
 
-
-    x -> op;
-    op -> y;
-
-    w -> op;
-    b -> op;
+    op -> x;
+    y -> op;
+    op -> w;
+    op -> b;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> w [label=<P<sub>W</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -1801,7 +2014,7 @@ $X: [batch, in]$, $W: [in, out]$, $b: [out]$, $Y: [batch, out]$:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -1879,7 +2092,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     b [
@@ -1918,12 +2131,10 @@ digraph G {
         >,
     ];
 
-
-    x -> op;
-    op -> y;
-
-    w -> op;
-    b -> op;
+    op -> x;
+    y -> op;
+    op -> w;
+    op -> b;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> w [label=<P<sub>W</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -1939,7 +2150,7 @@ the following shards:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     x [
         shape="plain",
@@ -2029,7 +2240,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     y0 [
@@ -2051,10 +2262,9 @@ digraph G {
             </table>
         >,
     ];
-
-    x0 -> op0;
-    op0 -> y0;
-
+    
+    op0 -> x0;
+    y0 -> op0;
     }
 
     subgraph cluster_1 {
@@ -2104,25 +2314,24 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
-
-    xk -> opk;
-    opk -> yk;
+    
+    opk -> xk;
+    yk -> opk;
 
     }
+    
+    op0 -> w [weight=0];
+    opk -> w [weight=0];
 
-
-    w -> op0 [weight=0];
-    w -> opk [weight=0];
-
-    b -> op0 [weight=0];
-    b -> opk [weight=0];
-
-    x -> x0;
-    x -> xk;
-    y0 -> y;
-    yk -> y;
+    op0 -> b [weight=0];
+    opk -> b [weight=0];
+    
+    x0 -> x;
+    xk -> x;
+    y -> y0;
+    y -> yk;
 }
 ```
 
@@ -2138,7 +2347,7 @@ P_Y(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{batch}, 0], \\\\ shape &:&
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -2219,11 +2428,11 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
-
-    x -> op;
-    op -> y;
+    
+    op -> x;
+    y -> op;
 
     idx -> x:a [
         label=<P<sub>W</sub>(i)>,
@@ -2248,7 +2457,7 @@ correspond to coherent tensor ranges in the mapped coordinate space:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -2349,11 +2558,11 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
-
-    x -> op;
-    op -> y;
+    
+    op -> x;
+    y -> op;
 
     idx -> x:a [
         label=<P<sub>X</sub>({batch:0})>,
@@ -2398,7 +2607,7 @@ and how we'll handle batching over `out` dimensions:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -2476,7 +2685,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     b [
@@ -2515,12 +2724,10 @@ digraph G {
         >,
     ];
 
-
-    x -> op;
-    op -> y;
-
-    w -> op;
-    b -> op;
+    op -> x;
+    y -> op;
+    op -> w;
+    op -> b;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> w [label=<P<sub>W</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -2538,7 +2745,7 @@ and reconstituting the result via selection expressions:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     x [
         shape="plain",
@@ -2646,7 +2853,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     y0 [
@@ -2671,9 +2878,9 @@ digraph G {
             </table>
         >,
     ];
-
-    b0 -> op0;
-    op0 -> y0;
+    
+    op0 -> b0;
+    y0 -> op0;
 
     }
 
@@ -2761,11 +2968,11 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
-
-    bk -> opk;
-    opk -> yk;
+    
+    opk -> bk;
+    yk -> opk;
 
     }
 
@@ -2785,18 +2992,17 @@ digraph G {
         >,
     ];
 
+    op0 -> x [weight=0];
+    opk -> x [weight=0];
+    
+    w0 -> SW0 -> w;
+    wk -> SWk -> w;
 
-    x -> op0 [weight=0];
-    x -> opk [weight=0];
+    b0 -> Sb0 -> b;
+    bk -> Sbk -> b;
 
-    w -> SW0 -> w0;
-    w -> SWk -> wk;
-
-    b -> Sb0 -> b0;
-    b -> Sbk -> bk;
-
-    w0 -> op0;
-    wk -> opk;
+    op0 -> w0;
+    opk -> wk;
     
     SC [
       label=<
@@ -2811,10 +3017,10 @@ digraph G {
       fillcolor="#a0d0d0",
       color=black,
     ];
-
-    y0 -> SC;
-    yk -> SC;
-    SC -> y;
+    
+    SC -> y0;
+    SC -> yk;
+    y -> SC;
 }
 ```
 
@@ -2903,7 +3109,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     y [
@@ -3071,7 +3277,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     w -> op;
@@ -3389,7 +3595,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     z [
@@ -3484,7 +3690,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     y [
@@ -3600,7 +3806,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
     
     v [
@@ -3658,7 +3864,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
     
     y [
@@ -3748,7 +3954,7 @@ digraph G {
         shape=rpromoter,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     y [
@@ -3872,7 +4078,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     z [
@@ -3939,7 +4145,7 @@ digraph G {
         shape=rpromoter,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     y [
@@ -4079,7 +4285,7 @@ digraph G {
         shape=Msquare,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     y [
@@ -4195,7 +4401,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     z [
@@ -4262,7 +4468,7 @@ digraph G {
         shape=rpromoter,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     v [
@@ -4340,7 +4546,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
     
     y [
@@ -4470,7 +4676,7 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
 
     y [
@@ -4636,7 +4842,7 @@ digraph G {
         shape=Msquare,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
     
     X -> Linear;
@@ -4666,7 +4872,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
     }
 
@@ -4700,7 +4906,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
 
       Prod -> Z;
@@ -4710,7 +4916,7 @@ digraph G {
           shape=rpromoter,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
 
       Z -> SumDim;
@@ -4721,7 +4927,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
       
       V -> Sum;
@@ -4787,7 +4993,7 @@ digraph G {
         shape=Msquare,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
     
     A -> Op;
@@ -4823,7 +5029,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
       
       K [
@@ -4831,7 +5037,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
       
       J -> V;
@@ -4868,7 +5074,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
       
       M -> V;
@@ -4878,7 +5084,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
       
       V -> N;
@@ -4953,14 +5159,14 @@ digraph G {
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
     
     N [
         shape=rarrow,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
     
     A -> M;
@@ -4991,7 +5197,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
     }
     
@@ -5046,7 +5252,7 @@ digraph G {
         shape=Msquare,
         style=filled,
         fillcolor="#E5E8E8",
-        margin=0.3
+        margin=0.25
     ];
     
     X -> Linear;
@@ -5079,7 +5285,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
     }
 
@@ -5113,7 +5319,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
 
       Prod -> Z;
@@ -5123,7 +5329,7 @@ digraph G {
           shape=rpromoter,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
 
       Z -> SumDim;
@@ -5134,7 +5340,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
       
       V -> Sum;
@@ -5170,7 +5376,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
 
       Prod -> Z;
@@ -5180,7 +5386,7 @@ digraph G {
           shape=rpromoter,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
 
       Z -> SumDim;
@@ -5191,7 +5397,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
       
       V -> Sum;
@@ -5223,7 +5429,7 @@ digraph G {
           shape=rarrow,
           style=filled,
           fillcolor="#E5E8E8",
-          margin=0.3
+          margin=0.25
       ];
     }
 
@@ -5537,7 +5743,7 @@ digraph G {
       shape=rarrow,
       style=filled,
       fillcolor="#E5E8E8",
-      margin=0.3
+      margin=0.25
   ];
 
   Y [
@@ -5759,7 +5965,7 @@ Conv [
 shape=rarrow,
 style=filled,
 fillcolor="#E5E8E8",
-margin=0.3
+margin=0.25
 ];
 
 strides [
@@ -5898,7 +6104,7 @@ digraph G {
       shape=rarrow,
       style=filled,
       fillcolor="#E5E8E8",
-      margin=0.3
+      margin=0.25
   ];
 
   strides0 [
@@ -5978,7 +6184,7 @@ digraph G {
       shape=rarrow,
       style=filled,
       fillcolor="#E5E8E8",
-      margin=0.3
+      margin=0.25
   ];
 
   strides1 [
