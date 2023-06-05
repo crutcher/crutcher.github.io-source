@@ -80,7 +80,7 @@ The goal is:
 > (we can prove that it *can* be made fast); then make it easy to program for to
 > get more help; then make it fast.
 
-### Table of Contents
+## Table of Contents
 
 <!-- toc -->
 
