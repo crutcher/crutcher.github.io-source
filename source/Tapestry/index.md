@@ -7,7 +7,7 @@ mathjax: true
 
 <p style="text-align: center;">Author: Crutcher Dunnavant &lt;crutcher@gmail.com&gt;</p>
 
-<img src="/Tapestry/tapestry.pastel.svg" width="200"/>
+<img src="tapestry.pastel.svg" alt="tapestry-logo" width="200"/>
 
 ## A Note For Reviewers
 
@@ -208,7 +208,7 @@ we'll call this:
 * a tensor fabric, or
 * a tapestry environment
 
-<img src="/Tapestry/tapestry.pastel.svg"/>
+<img src="tapestry.pastel.svg" alt="tapestry-logo"/>
 
 The individual nodes in this environment would be largely opaque to us; we
 would not send data or jobs to them individually, or push virtual machine images to them;
@@ -224,7 +224,7 @@ Suppose we can perform a few operations in this environment:
 * Load and export external data into and from named tensors in the environment;
   for example from and to databases and network file sources.
 
-<img src="/Tapestry/tapestry.io.svg"/>
+<img src="tapestry.io.svg" alt="tapestry-io"/>
 
 This is a very basic environment; and for now, we've omitted a number of details.
 
@@ -325,7 +325,7 @@ which includes a great deal of modern engineering and physical sciences applicat
  * Tensors
  * Expressions
    * Selectors Expressions
-   * Operator Expressions
+   * Block Operator Expressions
    * Load and Sink Operators
  * Expression Signatures
  * Cost Models
@@ -913,7 +913,7 @@ It is important to note that `rand` is an entire sub-category of problems:
 It may prove simpler in practice to model random generators as block expressions
 than as *Selector* generators.
 
-### Operator Expressions
+### Block Operator Expressions
 
 > TODO:
 > This section develops too quickly. Develop a (+) example first.
@@ -6318,7 +6318,7 @@ model on each trial $C_i = C(G_i)$, and produce a multi-dimensional cost value.
 Placing those costs in space, we can establish a surface known as the "Pareto frontier",
 made up of all instances which are better than any other instance on at least one dimension:
 
-<img src="/Tapestry/optimization/pareto.basic.svg"/>
+<img src="optimization/pareto.basic.svg" alt="pareto-basic"/>
 
 The **Pareto frontier** represents the instances (found so far) making the best trade-offs
 between resources we care about from our cost model.
@@ -6329,19 +6329,19 @@ sampled proportionally relative to their distance from the frontier); apply one 
 of the mutation rules, producing a new instance $G'$, and run the cost model to establish
 the new cost $C': C(G')$, placing the new instance somewhere in the optimization space:
 
-<img src="/Tapestry/optimization/pareto.trial.svg"/>
+<img src="optimization/pareto.trial.svg" alt="pareto-trial"/>
 
 With the addition of a new cost-annotated instance, we recompute the **pareto frontier**;
 if the new instance represents an improvement, we move the frontier:
 
-<img src="/Tapestry/optimization/pareto.update.svg"/>
+<img src="optimization/pareto.update.svg" alt="pareto-update"/>
 
 There are many ways to improve this. It's common to sample parent instances from points *near*
 the frontier, even if they no longer lie upon it; and the generalization of that is to say that
 there's distribution of parent selection probability which is willing to sample any instance
 within some distance of the frontier with some probability relative to that distance.
 
-<img src="/Tapestry/optimization/pareto.neighborhood.svg"/>
+<img src="optimization/pareto.neighborhood.svg" alt="pareto-neighborhood"/>
 
 A large motivation for the sampling approach is that many mutations may not produce better
 children, but might enable further mutations which do, and we don't want to close ourselves
@@ -6355,7 +6355,7 @@ For example, our initial graph $G$ likely has peak node memory and compute utili
 than any of our existing compute resources; we can't schedule it at all, but it's the basis
 for our initial optimization search.
 
-<img src="/Tapestry/optimization/pareto.constraint.svg"/>
+<img src="optimization/pareto.constraint.svg" alt="pareto-constraint"/>
 
 ### Graph Mutator Selection Optimization
 
@@ -6457,7 +6457,7 @@ Though we could, in principle, simply call a coordinate an array of integers;
 performing any non-trivial index math on discrete location $n$-dimensional tensors requires
 libraries for representing and manipulating these tensors.
 
-As I've been working on pieces of [Tapestry: Shardable Tensor Expression Environments](/Tapestry);
+As I've been working on pieces of Tapestry;
 most of the work has be focused on libraries for manipulating objects in ZSpace without spending
 all of my time debugging math errors.
 
