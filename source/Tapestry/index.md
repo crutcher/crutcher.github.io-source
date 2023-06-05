@@ -1087,6 +1087,12 @@ $$\begin{eqnarray\*}
 ReLU(Z) := Z \circ [Z > 0]
 \end{eqnarray\*}$$
 
+> 📝 Note: While many activation functions are more complex, ReLU specifically
+> can be rewritten, by the above definition, as a `where(T, T, zeros_like(T))` selection expression.
+> 
+> This is distracting from the current derivation, but in practice
+> could provide significant speedups; depending upon implementation and fusion pragmatics.
+
 We know that we can also re-write $ReLU$ expressions upon the batch dimensions:
 
 $$\begin{eqnarray\*}
