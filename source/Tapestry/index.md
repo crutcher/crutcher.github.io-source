@@ -2533,7 +2533,8 @@ digraph G {
 
 The values of $Linear$ in the `out` dimension are independent of each other;
 each `out` value is computed using one column of $W$ and one value in $b$;
-and as a result the op can be cleanly and trivially sharded by chunking $W$ and $b$:
+and as a result the op can be cleanly and trivially sharded by chunking $W$ and $b$,
+and reconstituting the result via selection expressions:
 
 ```graphviz
 digraph G {
@@ -2608,6 +2609,15 @@ digraph G {
             </table>
         >,
     ];
+    
+    SW0 [
+      label=<slice[:, 0:k]>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
 
     b0 [
         shape="plain",
@@ -2620,6 +2630,15 @@ digraph G {
                 </tr>
             </table>
         >,
+    ];
+    
+    Sb0 [
+      label=<slice[:, 0:k]>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
     ];
 
     op0 [
@@ -2682,6 +2701,15 @@ digraph G {
             </table>
         >,
     ];
+    
+    SWk [
+      label=<slice[:, k:]>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
 
     bk [
         shape="plain",
@@ -2694,6 +2722,15 @@ digraph G {
                 </tr>
             </table>
         >,
+    ];
+    
+    Sbk [
+      label=<slice[:, k:]>,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
     ];
 
     yk [
@@ -2752,17 +2789,32 @@ digraph G {
     x -> op0 [weight=0];
     x -> opk [weight=0];
 
-    w -> w0;
-    w -> wk;
+    w -> SW0 -> w0;
+    w -> SWk -> wk;
 
-    b -> b0;
-    b -> bk;
+    b -> Sb0 -> b0;
+    b -> Sbk -> bk;
 
     w0 -> op0;
     wk -> opk;
+    
+    SC [
+      label=<
+         <table border="0" cellspacing="0" cellpadding="0">
+           <tr><td>concat</td></tr>
+           <tr><td>dim=1</td></tr>
+           </table>
+      >,
+      margin=0,
+      shape=parallelogram,
+      style=filled,
+      fillcolor="#a0d0d0",
+      color=black,
+    ];
 
-    y0 -> y;
-    yk -> y;
+    y0 -> SC;
+    yk -> SC;
+    SC -> y;
 }
 ```
 
