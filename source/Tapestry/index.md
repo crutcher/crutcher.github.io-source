@@ -1963,18 +1963,18 @@ $Operator$s) is solvable by construction (but limited to findable constructions)
 * Bottom-Up: Given a menagerie of known projection functions $P_T(i)$,
   what $Operators$ can I construct?
 
-### Affine Projection Functions
+### Index Projection Functions
 
 One design approach for solving the $P_T(i)$ projection design problem is the use of
-coordinate space (integer, $\mathbb{Z}$) affine transforms (linear projections) from the index space
+discrete coordinate space (integer, $\mathbb{Z}$) affine transforms (linear projections) from the index space
 to the tensor spaces.
 
-Affine projection functions are an approach I explored in depth working at 3Scan,
-and an approach that's also been incorporated into the [MLIR](https://mlir.llvm.org/)
-project's [Polyhedral Types](https://mlir.llvm.org/docs/Dialects/Affine/).
+Discrete affine projection functions are a common approach that's also been incorporated into
+the [MLIR](https://mlir.llvm.org/) project's [Polyhedral Types](https://mlir.llvm.org/docs/Dialects/Affine/).
 
-What components make up an affine projection function?:
+What components make up an affine index projection function?:
 
+* The projections are Z-Space / integer valued;
 * an affine expression mapping points in $index$ space to starts in the coordinate space of input/output tensors;
 * a fixed $shape$ defining the shape of region selected relative to the mapped point.
 
