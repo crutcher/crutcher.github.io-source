@@ -555,7 +555,7 @@ digraph G {
          </table>
      >,
      shape=box3d, fillcolor="#d0d0ff", style=filled];
-  E [label="...", shape=plain];
+  E [label="⋮", shape=plain];
   X1000 [
      label=<
        <table border="0">
@@ -588,7 +588,7 @@ digraph G {
   ];
   
   S -> X1;
-  S -> E;
+  S -> E [color="black:white:black"];
   S -> X1000;
   
   X -> S;
