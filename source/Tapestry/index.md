@@ -322,14 +322,11 @@ which includes a great deal of modern engineering and physical sciences applicat
 
 > TBD: collect a definition-oriented description of the choices derived in the derivation section here.
 
- * Tensor
-   * Tensor Slice
-   * Tensor View
+ * Tensors
  * Expressions
-   * Selectors / View Expressions
-     * View Expression Shards
-   * Block Expressions
-     * Block Expression Shards
+   * Selectors Expressions
+   * Operator Expressions
+   * Load and Sink Operators
  * Expression Signatures
  * Cost Models
    * Tensor Costs
@@ -479,7 +476,7 @@ digraph G {
 We need operators to describe this composition; as there are many potential ways
 such a composition may work.
 
-Let's introduce a "Selection Expression", in this case, `concat` on `dim=0`, to firm this up:
+Let's introduce a "Selector Expression", in this case, `concat` on `dim=0`, to firm this up:
 
 ```graphviz
 digraph G {
@@ -535,9 +532,9 @@ digraph G {
  > (the other dimensions must be the same shape, the datatype must match) which
  > are important to `concat`, but not important to the current discussion.
 
-A "Selection Expression" doesn't change data, it provides a recipe for defining
+A "Selector Expression" doesn't change data, it provides a recipe for defining
 views of subsets of data which have already been defined under a new geometric view.
-We'll call the result of a *Selection Expression* a *Tensor View*, as it is a view of
+We'll call the result of a *Selector Expression* a *Tensor View*, as it is a view of
 existing data, seen through a selection lens.
 
 Returning to the example, and considering a large logical tensor `X`, we could define
@@ -597,7 +594,7 @@ digraph G {
 
 As the resultant view of `X` is defined in terms of views on its parts; no entity `X` needs
 to ever *exist* anywhere, provided we will only be consuming pieces of it; we can take the 
-ranges of `X` we wish an operation to act upon, map those ranges through the Selection Expression
+ranges of `X` we wish an operation to act upon, map those ranges through the Selector Expression
 `concat`, and determine which ranges of the component source tensors to select the data from
 when needed.
 
@@ -841,10 +838,10 @@ Though in the underlying buffer, there would be only one copy.
 It is valuable for us to know that a tensor view we wish to copy is a broadcast view,
 as properly modeling this can dramatically reduce the total data to transfer.
 
-### Selection Expressions and Tensor Views
+### Selector Expressions and Tensor Views
 
 As we've informally seen the need for composite view operations, and explored some tensor
-indexing view pragmatics, we can make a case that we'd like *Selection Expressions* which
+indexing view pragmatics, we can make a case that we'd like *Selector Expressions* which
 either:
 
  * Define a *Tensor View* as an index transformation of an existing *Tensor View*; or
@@ -916,7 +913,7 @@ It is important to note that `rand` is an entire sub-category of problems:
 It may prove simpler in practice to model random generators as block expressions
 than as *Selector* generators.
 
-### Computed Block Value Expressions
+### Operator Expressions
 
 > TODO:
 > This section develops too quickly. Develop a (+) example first.
@@ -3387,9 +3384,14 @@ Applying this re-write would restructure our expression graph from this:
 ```graphviz
 digraph D {
     rankdir=LR;
-    X, W, b, Z [shape=box];
+    X, W, b, Z [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
-    Linear [shape=rarrow];
+    Linear [
+        shape=rarrow,
+        margin=0.25,
+        style=filled,
+        fillcolor="#E5E8E8",
+    ];
     
     X -> Linear;
     W -> Linear;
@@ -3403,13 +3405,17 @@ To this:
 ```graphviz
 digraph D {
     rankdir=LR;
-    X, W, b, Z [shape=box];
+    X, W, b, Z [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     X -> Matmul;
     W -> Matmul;
     
-    Matmul [shape=rarrow];
-    Sum [shape=rarrow];
+    Matmul, Sum [
+        shape=rarrow,
+        margin=0.25,
+        style=filled,
+        fillcolor="#E5E8E8",
+    ];
     
     Matmul -> Sum;
     b -> Sum;
@@ -3448,16 +3454,26 @@ This decomposition yields the following expression graph:
 ```graphviz
 digraph D {
     rankdir=LR;
-    X, W, V, Z [shape=box];
+    X, W, V, Z [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     X -> Prod;
     W -> Prod;
-    Prod [shape=rarrow];
+    Prod [
+        shape=rarrow,
+        margin=0.25,
+        style=filled,
+        fillcolor="#E5E8E8",
+    ];
     
     Prod -> V;
     
     V -> SumDim;
-    SumDim [shape=rpromoter];
+    SumDim [
+      shape=rpromoter,
+      margin=0.25,
+      style=filled,
+      fillcolor="#E5E8E8",
+    ];
     
     SumDim -> Z;
 }
@@ -5477,6 +5493,40 @@ There are two broad approaches to realize this goal, which will be explored in l
 In practice, these two approaches are isomorphic to each other; though in some situations
 some problems are easier to express in one or the other approach. We'll develop both.
 
+### Load and Sink Operators
+
+> TODO: flesh out.
+
+* Where do tensors come from, at the beginning of an expression?
+* How do we constrain result tensors to be stored in particular locations?
+
+These pragmatics can be modeled by the introduction of *Load* and *Sink* operator
+expressions.
+
+A *Load* operator has a trivial one-element index space, and produces the tensor
+shard it is defined for as its only output. Under scheduling optimization,
+that operation can be constrained to be scheduled local to the compute resource
+where the input data is provided. *Load* operators are well-behaved in the value
+semantics, if nothing looks at their data, they can be safely pruned.
+
+A *Sink* operator is the reverse; it also has a trivial one-element index space,
+consumes the tensor shard it is responsible for storing, and is constrained
+to be scheduled only on the target output node that is the target destination
+for that resource. *Sink* operators are assumed to be observed, they are
+the final value consumers in the value semantics, and cannot be pruned from
+the graph.
+
+These operators could perform any arbitrary IO, reading and writing to and from
+existing memory resources, local or remote disks, databases, or even data transform
+operations.
+
+There are reasons to define abstract large index *Load* and *Sink*
+operators, as some execution environments may not have predefined data layout,
+or the operators may exist to describe gateway processes which need to be
+scheduled to read or write data from or to another service; in these
+situations the scheduling constraint on the operators ("must be on this machine")
+would be relaxed.
+
 ### Graph Rewrite Rules
 
 [Graph rewriting](https://en.wikipedia.org/wiki/Graph_rewriting) is a common implementation feature
@@ -5488,8 +5538,13 @@ As an example, suppose we have a graph containing the following subgraph:
 ```graphviz
 digraph G {
   rankdir=LR;
-  W, X, Y [shape=box];
-  A [shape=rarrow];
+  W, X, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
+  A [
+      shape=rarrow,
+      margin=0.25,
+      style=filled,
+      fillcolor="#E5E8E8",
+  ];
   
   G1, G2, G3 [label="...", shape=plain];
   G1 -> W;
@@ -5513,12 +5568,17 @@ the following graph, where `A` has been replaced with `J` and `K`, and an interm
 ```graphviz
 digraph G {
   rankdir=LR;
-  W, X, Y [shape=box];
+  W, X, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
   
   subgraph cluster_0 {
     label="A => J, K";
-    V [shape=box];
-    J, K [shape=rarrow];
+    V [shape=box3d, fillcolor="#d0d0ff", style=filled];
+    J, K [
+      shape=rarrow,
+      margin=0.25,
+      style=filled,
+      fillcolor="#E5E8E8",
+    ];
     J -> V;
     V -> K;
   }
@@ -5547,8 +5607,13 @@ rules around sharding block operations; on rewriting block operation graphs, suc
 ```graphviz
 digraph G {
   rankdir=LR;
-  W, X, Y [shape=box];
-  A [shape=rarrow];
+  W, X, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
+  A [
+    shape=rarrow,
+    margin=0.25,
+    style=filled,
+    fillcolor="#E5E8E8",
+  ];
   
   G1, G2, G3 [label="...", shape=plain];
   G1 -> W;
@@ -5566,12 +5631,18 @@ Into graphs where the block operations have been sharded in some way, such as th
 ```graphviz
 digraph G {
   rankdir=LR;
-  W, X, Y [shape=box];
+  W, X, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
   
   subgraph cluster_0 {
     label="shard A";
-    A1 [shape=rarrow, label=<A<sub>1</sub>>];
-    A2 [shape=rarrow, label=<A<sub>2</sub>>];
+    A1, A2 [
+      shape=rarrow,
+      margin=0.25,
+      style=filled,
+      fillcolor="#E5E8E8",
+    ];
+    A1 [label=<A<sub>1</sub>>];
+    A2 [label=<A<sub>2</sub>>];
   }
   
   G1, G2, G3 [label="...", shape=plain];
@@ -5594,8 +5665,7 @@ that are valuable to us, starting from a high-level $Linear$ block:
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    X, W, b, Y [shape=box];
+    X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
 
     Linear [
         label=Linear,
@@ -5622,8 +5692,7 @@ of $Linear$:
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    X, W, b, Y [shape=box];
+    X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
       label="Linear => LinearBlock";
@@ -5653,13 +5722,12 @@ of $Linear$:
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    X, W, b, Y [shape=box];
+    X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
     {rank=same; X; b; }
     
     subgraph cluster_0 {
       label="Linear => Prod, SumDim, Sum";
-      Z, V [shape=box];
+      Z, V [shape=box3d, fillcolor="#d0d0ff", style=filled];
 
       Prod [
           label=Prod,
@@ -5745,8 +5813,7 @@ For example, consider this subgraph featuring $Op$:
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    A, B, C [shape=box];
+    A, B, C [shape=box3d, fillcolor="#d0d0ff", style=filled];
 
     Op [
         label=Op,
@@ -5777,12 +5844,10 @@ could be applied:
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    A, B, C [shape=box];
-
+    A, B, C [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
-      V [shape=box];
+      V [shape=box3d, fillcolor="#d0d0ff", style=filled];
       
       J [
           label=J,
@@ -5822,12 +5887,10 @@ for example this entirely different rewrite of $Op$.
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    A, B, C [shape=box];
-
+    A, B, C [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
-      V [shape=box];
+      V [shape=box3d, fillcolor="#d0d0ff", style=filled];
       
       M [
           label=M,
@@ -5912,8 +5975,7 @@ Consider the subgraph below:
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    A, B, C, D [shape=box];
+    A, B, C, D [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     M [
         shape=rarrow,
@@ -5948,8 +6010,7 @@ and rewrite it to a new condensed operator, $J$:
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    A, B, D [shape=box];
+    A, B, D [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
       label="(M -> $V -> N) => J"
@@ -6004,8 +6065,7 @@ using either local expansion, or global rewrite search.
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    X, W, b, Y [shape=box];
+    X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
 
     Linear [
         label=Linear,
@@ -6035,8 +6095,7 @@ of $Linear$:
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    X, W, b, Y [shape=box];
+    X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
       label="Linear => LinearBlock";
@@ -6066,13 +6125,12 @@ of $Linear$:
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    X, W, b, Y [shape=box];
+    X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
     {rank=same; X; b; }
     
     subgraph cluster_0 {
       label="Linear => Prod, SumDim, Sum";
-      Z, V [shape=box];
+      Z, V [shape=box3d, fillcolor="#d0d0ff", style=filled];
 
       Prod [
           label=Prod,
@@ -6125,11 +6183,8 @@ representation:
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    X, W, b, Y [shape=box];
+    X, W, b, Y, Z, V [shape=box3d, fillcolor="#d0d0ff", style=filled];
     {rank=same; X; b; }
-    
-      Z, V [shape=box];
 
       Prod [
           label=Prod,
@@ -6179,8 +6234,7 @@ rewritten to $LinearBlock$ when the $in$ dimension wasn't being sharded upon:
 ```graphviz
 digraph G {
     rankdir=LR;
-    
-    X, W, b, Y [shape=box];
+    X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
       label="(Prod -> SumDim -> Sum) => LinearBlock";
