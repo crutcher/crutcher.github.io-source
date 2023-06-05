@@ -332,30 +332,25 @@ which includes a great deal of modern engineering and physical sciences applicat
 
 ## Evaluation Theory Derivation
 
-This section incrementally derives the formal semantics required by tapestry
-from a bottom-up first-principles theory of operator evaluation and sharding.
+The goal of this section is to incrementally refine informal operational semantics
+over tensor expressions towards formal semantics. We're motivated by math we'd like to
+be able to express simply, and have "The Right Thing" happen.
 
-### The Distributed Tensor Expression Problem
-
-> TODO: unfold this slower.
->  * describe tensor selector expressions first
->    * simple copies
->    * slices, permutations, etc.
->  * describe a simpler block operation first
->    * addition
->    * multiplication
->    * Linear
-
-The tensor evaluation language problem:
-
+For instance, consider the addition of two large tensors `A` and `B`:
 ```
-A, B, X, Y: Tensor
-Y = f(A, B)
-Z = g(X, Y)
+C = A + B
 ```
 
-* Given an arbitrarily large tensor-valued operator expression;
-  how do we efficiently schedule the expression over large numbers of GPUs?
+If `A` and `B` are both multi-petabyte objects, how can we describe the operational semantics
+of computing and storing `C`?
+
+ * `A` and `B` are distributed sharded objects (stored on multiple machines);
+ * the component addition operations need to happen on some collection of machines;
+ * `C` will need to be reified as a distributed sharded object.
+
+While our motivation lies primarily in computing data, in the `+` portion of the above
+semantics, we'll begin with an exploration of what it means to select, copy, and move data;
+as this lays an important foundation for describing the sharding of computational expressions.
 
 Much of the existing work in this space has focused upon scaling programs written
 in existing tensor expression languages (`pytorch`, `tensorflow`, `numpy`);
@@ -411,7 +406,501 @@ In cases where the formal semantics we discover are not a perfect match for our 
 options: we can either force alignment or adjust our goals. In my experience, adjusting our goals to take advantage of
 the formal semantic system we've found is often the most efficient approach.
 
-#### Expanding a Linear Example
+### Piecewise Tensors
+
+Informally, we know that our abstract distributed tensors must be made of parts, and the location
+of those parts in an execution graph affect the operational costs of manipulation.
+
+A piece of a tensor which is local to a GPU or host can be viewed and transformed on that
+machine without incurring network transit costs or delays; while a piece of a tensor which
+must be moved between GPUs or hosts to reach its target consumer incurs different, higher
+costs in time and resource contention.
+
+And *some* parts of a tensor may be local to a target consumer, while others are not;
+so we know our formal semantics must expose and model the piecewise construction of abstract
+tensors from sharded components located on a resource locality graph.
+
+To begin to make this concrete, suppose we have some logical tensor view `X` of shape `[1000, 10, 10]`,
+composed piecewise from tensors `X.1` and `X.2` each of shape `[500, 10, 10]`:
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  X1 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: X.1</td></tr>
+         <tr><td>[500, 10, 10]</td></tr>
+         </table>
+     >,
+     shape=box3d, fillcolor="#d0d0ff", style=filled];
+  X2 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: X.2</td></tr>
+         <tr><td>[500, 10, 10]</td></tr>
+         </table>
+     >,
+     shape=box3d, fillcolor="#d0d0ff", style=filled];
+  X [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: X</td></tr>
+         <tr><td>[1000, 10, 10]</td></tr>
+         </table>
+     >,
+     shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+  X -> X1;
+  X -> X2;
+}
+```
+
+We need operators to describe this composition; as there are many potential ways
+such a composition may work.
+
+Let's introduce a "Selection Expression", in this case, `concat` on `dim=0`, to firm this up:
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  X1 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: X.1</td></tr>
+         <tr><td>[500, 10, 10]</td></tr>
+         </table>
+     >,
+     shape=box3d, fillcolor="#d0d0ff", style=filled];
+  X2 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: X.2</td></tr>
+         <tr><td>[500, 10, 10]</td></tr>
+         </table>
+     >,
+     shape=box3d, fillcolor="#d0d0ff", style=filled];
+  X [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: X</td></tr>
+         <tr><td>[1000, 10, 10]</td></tr>
+         </table>
+     >,
+     shape=box3d, fillcolor="#d0d0ff", style=filled];
+     
+  S [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>concat</td></tr>
+         <tr><td>dim=0</td></tr>
+         </table>
+    >,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  
+  S -> X1;
+  S -> X2;
+  
+  X -> S;
+}
+```
+> 📝 Note: `concat` is an operation which concatenates existing tensors into a new, larger
+ > tensor along the given dimension. There are shape and correctness restrictions
+ > (the other dimensions must be the same shape, the datatype must match) which
+ > are important to `concat`, but not important to the current discussion.
+
+A "Selection Expression" doesn't change data, it provides a recipe for defining
+views of subsets of data which have already been defined under a new geometric view.
+We'll call the result of a *Selection Expression* a *Tensor View*, as it is a view of
+existing data, seen through a selection lens.
+
+Returning to the example, and considering a large logical tensor `X`, we could define
+it by selecting many shards (`X1`, ..., `X1000`), and collecting them under a single view.
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  X1 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: X.1</td></tr>
+         <tr><td>[500, 10, 10]</td></tr>
+         </table>
+     >,
+     shape=box3d, fillcolor="#d0d0ff", style=filled];
+  E [label="...", shape=plain];
+  X1000 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: X.1000</td></tr>
+         <tr><td>[500, 10, 10]</td></tr>
+         </table>
+     >,
+     shape=box3d, fillcolor="#d0d0ff", style=filled];
+  X [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: X</td></tr>
+         <tr><td>[500000, 10, 10]</td></tr>
+         </table>
+     >,
+     shape=box3d, fillcolor="#d0d0ff", style=filled];
+     
+  S [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>concat</td></tr>
+         <tr><td>dim=0</td></tr>
+         </table>
+    >,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  
+  S -> X1;
+  S -> E;
+  S -> X1000;
+  
+  X -> S;
+}
+```
+
+As the resultant view of `X` is defined in terms of views on its parts; no entity `X` needs
+to ever *exist* anywhere, provided we will only be consuming pieces of it; we can take the 
+ranges of `X` we wish an operation to act upon, map those ranges through the Selection Expression
+`concat`, and determine which ranges of the component source tensors to select the data from
+when needed.
+
+### Tensor Layout Pragmatics
+
+In order to discus tensor views, a small detour into tensor implementation pragmatics
+is necessary. Physical tensors, tensors actually stored on some machine as opposed
+to logical or computed or composite views of tensors; will be stored in one or more
+linear ranges of memory or disk storage; as both memory and disk systems
+are indexed linearly.
+
+All of the machinery concerning how these tensors are indexed, and thus how transformed
+views of those indexes can be constructed, are captured in the "striding" schemes
+attached to these tensors.
+
+Consider a simple array tensor `T` with linear storage:
+
+```
+T := [8, 9, 10, 11]
+```
+
+This tensor has 1-dimension, a *shape* (`[4]`), and a *size* (`4`) defined as the product
+of the shape. To find the value of the `T[2]` element, we'd start from the beginning of
+the data, and take 2 steps, arriving at `10`. In this situation, the tensor also has another field 
+*strides* (`[1]`) which defines how large a step to take in a given dimension.
+
+Our simple 1-dimensional array `T` might therefore be:
+
+| Field   | Value          |
+|---------|----------------|
+| data    | [8, 9, 10, 11] |
+| offset  | 0              |
+| shape   | [4]            |
+| strides | [1]            |
+
+As this tensor is a simple linear array, *strides* here is `[1]`, indicating that the size
+of one step in the 0-dimension is `1`.
+
+To lookup `T[2]`, we would compute:
+
+```
+T[2] = data[offset + 2*strides[0]]
+T[2] = data[0 + 2*1]
+T[2] = data[2]
+T[2] = 10
+```
+
+But what if we wanted a view-only reversal of this tensor? In this example, the data buffer
+is small, but it could be gigabytes; we'd like a mechanism to manipulate how we see the layout
+of the data, without copying the data.
+
+We can manipulate the `offset` and `strides` to achieve this. First, we need to make the stride
+for the 0-dimension `-1`, as each step we take should now move us backwards in the array;
+second, we need to adjust the offset so that `R[0]` points to the end of the previous array;
+in this situation:
+
+```
+R.offset = T.offset + (T.shape[0] - 1) * T.strides[0]
+R.offset = 0 + 3 * 1 = 3
+```
+
+Which would give us the following definition of `R`:
+
+| Field   | Value          |
+|---------|----------------|
+| data    | [8, 9, 10, 11] |
+| offset  | 3              |
+| shape   | [4]            |
+| strides | [-1]           |
+
+To lookup `R[2]`, we would compute:
+
+```
+R[2] = data[offset + 2*strides[0]]
+R[2] = data[3 - 2]
+R[2] = data[1]
+R[2] = 9
+```
+
+We can extend our tensor into additional dimensions; consider a `[2, 3]` tensor `A`
+with the following data:
+
+|           | A[0, :] | A[1, :] | A[2, :] |
+|-----------|---------|---------|---------|
+| *A[:, 0]* | 10      | 20      | 30      |
+| *A[:, 1]* | 40      | 50      | 60      | 
+
+A common way to layout this tensor would be to pack the "least significant",
+or last dimension most densely, and to step out from there in strides;
+so the contents of each row are arranged contiguously, and each column
+takes a stride step the size of a full row:
+
+| Field   | Value                    |
+|---------|--------------------------|
+| data    | [10, 20, 30, 40, 50, 60] |
+| offset  | 0                        |
+| shape   | [2, 3]                   |
+| strides | [3, 1]                   |
+
+We can generalize the above offset calculation into arbitrary dimensions:
+
+```
+A[coords] = data[offset + sum([coords[i] * strides[i] for i in range(c.length)])]
+```
+
+So, looking up `A[1, 2]`, which we expect to be `60`, we see:
+
+```
+A[1, 2] = data[offset + coords[0] * strides[0] + coords[1] * strides[1]]
+A[1, 2] = data[0 + 1 * 3 + 2 * 1]
+A[1, 2] = data[5] = 60
+```
+
+If we wanted to take the transposition of this tensor, and swap the dimensions,
+we could do so *without* moving the data, by simply swapping the shape
+and strides. Call it `B`:
+
+| Field   | Value                    |
+|---------|--------------------------|
+| data    | [10, 20, 30, 40, 50, 60] |
+| offset  | 0                        |
+| shape   | [3, 2]                   |
+| strides | [1, 3]                   |
+
+```
+B[2, 1] = data[offset + coords[0] * strides[0] + coords[1] * strides[1]]
+B[2, 1] = data[0 + 2 * 1 + 1 * 3]
+B[2, 1] = data[5] = 60
+```
+
+|           | B[0, :] | B[1, :] |
+|-----------|---------|---------|
+| *B[:, 0]* | 10      | 40      |
+| *B[:, 1]* | 20      | 50      |  
+| *B[:, 1]* | 30      | 60      |  
+
+This offset location projection follows the general form a discrete affine projection,
+$Ax + b$ (or $strides coords + offset$), where we're mapping from some number of dimensions
+in the input coordinate space to a flat location in some buffer space.
+As such, there are many mechanical transformations which can be applied to this offset
+mapping to produce different effects without changing or copying the underlying buffer, for example:
+
+ * arbitrarily reordering dimensions
+ * reversing a dimension
+ * selecting a subset tensor which holds one dimension fixed
+ * selecting a subset tensor which takes regular strides along a dimension
+ * etc.
+
+These are the view pragmatics underlying tensor representations; provided that access
+to the tensor is random (we can access it in any order) and *O(1)* (the access cost
+of looking at any one piece of data is constant), arbitrary combinations of index
+view transformations have no underlying costs.
+
+> 📝 Note: In practice, at the level of internal machine memory access cache lines and
+> direct memory access block reads, contiguous accesses are faster, and algorithms
+> can be improved by careful layout planning. This is commonly done by dedicated
+> vector compilers for a particular machine target.
+> 
+> It is possible to mark the physical layout an operation will produce
+> on output; and the preferred physical layout an operation desires
+> on input, and to trace these through a solution graph to achieve
+> better performance, but this is deep work in cost pragmatics
+> which we'll ignore while developing the remaining theory.
+> It can be mechanically added to a graph solver at a later point
+> as a layout pragma; and it does have impact on cost models.
+> 
+> At the planning level under consideration, distributed operations
+> moving data *between* machines, the impact of non-contiguous layouts
+> is negligible compared to most cross-machine transfer operations;
+> until a system is directly using RDMA (remote data memory access)
+> transfers, at which point the engineering resources necessary to
+> model the preferred layout in the solvers should track with system
+> benefits.
+
+#### Squeeze, Unsqueeze, and Broadcast
+
+There is a non-obvious trick we can perform with the above indexing scheme,
+which derives from the fact that dimensions of size 1 have no impact on the
+calculated offset of a tensor. It doesn't matter what value that dimension
+has for its stride, as the coordinate for that dimension is always 0.
+
+Consider the above tensor `T` again:
+
+| Field   | Value          |
+|---------|----------------|
+| data    | [8, 9, 10, 11] |
+| offset  | 0              |
+| shape   | [4]            |
+| strides | [1]            |
+
+We could add as many size-1 dimensions as we wished, by adding to the shape,
+and setting their resultant stride to 0.
+Consider shape `[1, 1, 4, 1]`, and let's call this `V`:
+
+| Field   | Value          |
+|---------|----------------|
+| data    | [8, 9, 10, 11] |
+| offset  | 0              |
+| shape   | [1, 1, 4, 1]   |
+| strides | [0, 0, 1, 0]   |
+
+Calculating the offset of `V[0, 0, 2, 0]`:
+```
+V[0, 0, 2, 0] = data[offset + c[0]*strides[0] + c[1]*strides[1] + c[2]*strides[2] + c[3]*strides[3]]
+V[0, 0, 2, 0] = data[0 + 0*0 + 0*0 + 2*1 + 0*0]
+V[0, 0, 2, 0] = data[2]
+V[0, 0, 2, 0] = 10
+```
+
+We can also safely remove an dimension of size 1, no matter its stride, by deleting both entries.
+
+Size 1 dimensions do not affect the data offset; and the view operations of removing and adding
+these dimensions are called `squeeze` and `unsqueeze`.
+
+But there's another trick, once we focus on a dimension with stride of 0; we can set the shape
+to any value, and we'll see a computed view which mirrors the data along that dimension.
+This is called a *broadcast* dimension, it's a synthetic view; and its frequently used to perform
+tensor operations on tensors of different sizes.
+
+Consider this tensor, called `M`, where we've added a broadcast dimension:
+
+| Field   | Value          |
+|---------|----------------|
+| data    | [8, 9, 10, 11] |
+| offset  | 0              |
+| shape   | [ 4, 2]        |
+| strides | [ 1, 0]        |
+
+To a viewer, this tensor would appear to have the data:
+
+|           | M[0, :] | M[1, :] | M[2, :] | M[3, :] |
+|-----------|---------|---------|---------|---------|
+| *M[:, 0]* | 8       | 9       | 10      | 11      |
+| *M[:, 1]* | 8       | 9       | 10      | 11      |
+
+Though in the underlying buffer, there would be only one copy.
+
+It is valuable for us to know that a tensor view we wish to copy is a broadcast view,
+as properly modeling this can dramatically reduce the total data to transfer.
+
+### Selection Expressions and Tensor Views
+
+As we've informally seen the need for composite view operations, and explored some tensor
+indexing view pragmatics, we can make a case that we'd like *Selection Expressions* which
+either:
+
+ * Define a *Tensor View* as an index transformation of an existing *Tensor View*; or
+ * Define a *Tensor View* as some composition of one or more existing *Tensor Views*
+
+A rough list of index transformations we've previously discussed would include:
+* `permute/transpose` - reordering the dimension indexes of a tensor is free.
+* `reverse/flip` - flipping a tensor dimension is free.
+* `select` - selecting a subset of a tensor is free.
+* `stride` - skipping every `k` items along a dimension is free.
+* `squeeze/unsqueeze` - adding/removing a size-1 dimension is free.
+* `broadcast` - treat a size 1 dimension as though it were size `n`, without copying data.
+
+We already know we'll need `concat`, but there are a few other common composition selectors
+worth mentioning at this point:
+* `concat` - assemble a tensor view by concatenating multiple tensors along a dimension.
+* `interleave` - assemble a tensor view by interleaving multiple tensors along a dimension.
+* `repeat`<sup>\*</sup> - assemble a tensor view by repeating a tensor along a dimension.
+* `pad`<sup>\*</sup> - supply data outside the selection region with a default value, or a reflection.
+* `where`, `max`, `min` - conditionally construct a view by switching on the data from multiple views.
+
+> 📝 Note: <sup>\*</sup>`pad` and `repeat` are *Selection*s we'd also prefer to implement on the local consumer;
+> as the data is either a default value, or a reflection or duplication of data we already have;
+> and these are also good targets for Selection optimization and re-write.
+
+> 📝 Note: `broadcast` and `repeat` are similar, but not the same. A combination of `unsqueeze`
+> and `broadcast` permits us to construct a new dimension, and then duplicate data along
+> that dimension; but does not permit us to repeat the data in a dimension.
+> 
+> It is possible to model an operation like `repeat` by adding modulo arithmetic to
+> the view indexing operations; or to model it as an application to `concat`.
+>
+> There are other view transformations which would benefit from the addition of modulo
+> arithmetic to view transformations, at the cost of increasing the complexity of
+> all operations which manipulate and rewrite transformations; so for now, we'll
+> model `repeat` as a shorthand for `concat`.
+
+#### Atomic Selections
+
+While these transformations are composable, and thus we could define complex single-step
+transformations; this significantly reduces readability, and increases the complexity of
+graph modeling code.
+
+For this reason, we'll work for now in terms of atomic selection expressions, expressions which
+do one well-describable thing at a time. Multi-stage operations can always be fused later,
+but the reverse process can produce strange transformations which don't line up with
+original code and can be a barrier to understanding.
+
+#### Generators
+
+An additional potentially useful category of *Selector Expressions* are generators; consider:
+* `zeros`, `ones`, `full` - generate a view full of a given value.
+* `rand` - generate "random" data.
+
+Generators can be used to create an entire Tensor View on the local machine;
+as the data is a deterministic function, there's no data to transmit.
+
+##### Random Generators
+
+It is important to note that `rand` is an entire sub-category of problems:
+* We require an idempotent, and thus deterministic random field;
+  in a given evaluation, we must be able to rebuild the *same* random
+  values every time a tensor view is accessed; so `rand` needs a seed
+  and to compute data as some function of the coordinate space.
+* There are many random number generation distributions to select from,
+  before we consider that properties (such as $\sigma$) may be functions
+  of the input coordinates.
+
+It may prove simpler in practice to model random generators as block expressions
+than as *Selector* generators.
+
+### Computed Block Value Expressions
+
+> TODO:
+> This section develops too quickly. Develop a (+) example first.
+
+Having addressed the semantics involved in viewing and moving data,
+we can now focus on computing products of operators on data.
 
 Consider a tensor expression in a toy language, call it $Expr$; this particular expression
 is motivated by a fully connected neural network layer, but it could be anything:
@@ -5584,1207 +6073,6 @@ There are two broad approaches to realize this goal, which will be explored in l
 In practice, these two approaches are isomorphic to each other; though in some situations
 some problems are easier to express in one or the other approach. We'll develop both.
 
-### Tensor View Selections
-
-As noted in previous sections, a family of tensor view selection operations can significantly
-reduce the complexity of representing expression graphs.
-
-Consider a very simple expression; one which indexes solely over a $batch$ dimension,
-mapping vectors of $in$-features to vectors of $out$-features.
-
-```graphviz
-digraph G {
-  rankdir=LR;
-
-  idx [
-    shape="plain",
-    label=<
-    <table border="0">
-    <tr><td><table cellpadding="8">
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">batch</td>
-              <td>…</td>
-              </tr>
-          </table></td></tr>
-    <tr><td><i>index</i></td></tr>
-        </table>
-    >,
-  ];
-
-  X [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">x<sub>batch, in</sub></td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  Expr [
-      shape=rarrow,
-      style=filled,
-      fillcolor="#E5E8E8",
-      margin=0.3
-  ];
-  
-  Y [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">y<sub>batch, out</sub></td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  X -> Expr;
-  Expr -> Y;
-  
-  idx -> X [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
-  idx -> Y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
-
-  { rank=same; idx; Expr; }
-}
-```
-
-The signature for this expression describes the contract of the attached operation;
-exactly; we do not have analytic information about the internals of the operation
-(at this level), so to execute this expression, we *must* provide an input
-tensor shaped as $[batch, in]$, and we *must* expect an output tensor
-shaped as $[batch, out]$.
-
-But suppose the previous step provided tensor view $W$, which was oriented feature-first?
-
-What operation $Selection$ might we use to adjust the data?
-
-```graphviz
-digraph G {
-  rankdir=LR;
-
-  idx [
-    shape="plain",
-    label=<
-    <table border="0">
-    <tr><td><table cellpadding="8">
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">batch</td>
-              <td>…</td>
-              </tr>
-          </table></td></tr>
-    <tr><td><i>index</i></td></tr>
-        </table>
-    >,
-  ];
-  
-  W [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td>…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">w<sub>in, batch</sub></td>
-              <td bgcolor="#D6EAF8">…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  X [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">x<sub>batch, in</sub></td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  Expr [
-      shape=rarrow,
-      style=filled,
-      fillcolor="#E5E8E8",
-      margin=0.3
-  ];
-  
-  Y [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">y<sub>batch, out</sub></td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-  
-  V [
-    label="Selection",
-    shape=parallelogram,
-    style=filled,
-    fillcolor="#a0d0d0",
-    color=black,
-  ];
-  W -> V;
-  V -> X;
-
-  X -> Expr;
-  Expr -> Y;
-  
-  idx -> X [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
-  idx -> Y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
-
-  { rank=same; idx; Expr; }
-}
-```
-
-We could of course use further block expressions to rewrite data; the operation family
-is general and sufficient for any structural rewrite we may wish to perform. But doing
-so would push the problem back up a recursion level; we'd be scheduling operations
-which existed solely to reorder data for other operations.
-
-Under sufficiently strong graph rewrite and operator fusion assumptions, such an approach
-could work efficiently, but it raises the standards needed for an effective optimizer.
-
-So we look for a weaker operator family, which would be simpler to schedule and
-more amenable to rewrites and optimization.
-
-Additionally, consider that the input for a given operation may be collected from
-multiple disparate tensor shards, from distributed execution environments.
-
-Possibly sharded by batch:
-```graphviz
-digraph G {
-  rankdir=LR;
-
-  idx [
-    shape="plain",
-    label=<
-    <table border="0">
-    <tr><td><table cellpadding="8">
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">batch</td>
-              <td>…</td>
-              </tr>
-          </table></td></tr>
-    <tr><td><i>index</i></td></tr>
-        </table>
-    >,
-  ];
-  
-  W1 [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td>…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">w<sub>in, m</sub></td>
-              <td bgcolor="#D6EAF8">…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-  
-  W2 [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td>…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">w<sub>in, k</sub></td>
-              <td bgcolor="#D6EAF8">…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  X [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">x<sub>(m+k), in</sub></td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  Expr [
-      shape=rarrow,
-      style=filled,
-      fillcolor="#E5E8E8",
-      margin=0.3
-  ];
-  
-  Y [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">y<sub>batch, out</sub></td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-  
-  V [
-    label="Selection",
-    shape=parallelogram,
-    style=filled,
-    fillcolor="#a0d0d0",
-    color=black,
-  ];
-  W1 -> V;
-  W2 -> V;
-  V -> X;
-
-  X -> Expr;
-  Expr -> Y;
-  
-  idx -> X [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
-  idx -> Y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
-
-  { rank=same; idx; Expr; }
-}
-```
-
-Or by feature group:
-```graphviz
-digraph G {
-  rankdir=LR;
-
-  idx [
-    shape="plain",
-    label=<
-    <table border="0">
-    <tr><td><table cellpadding="8">
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">batch</td>
-              <td>…</td>
-              </tr>
-          </table></td></tr>
-    <tr><td><i>index</i></td></tr>
-        </table>
-    >,
-  ];
-  
-  W1 [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td>…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">w<sub>a, batch</sub></td>
-              <td bgcolor="#D6EAF8">…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-  
-  W2 [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td>…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">w<sub>b, batch</sub></td>
-              <td bgcolor="#D6EAF8">…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  X [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">x<sub>batch, (a+b)</sub></td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  Expr [
-      shape=rarrow,
-      style=filled,
-      fillcolor="#E5E8E8",
-      margin=0.3
-  ];
-  
-  Y [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">y<sub>batch, out</sub></td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-  
-  V [
-    label="Selection",
-    shape=parallelogram,
-    style=filled,
-    fillcolor="#a0d0d0",
-    color=black,
-  ];
-  W1 -> V;
-  W2 -> V;
-  V -> X;
-
-  X -> Expr;
-  Expr -> Y;
-  
-  idx -> X [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
-  idx -> Y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
-
-  { rank=same; idx; Expr; }
-}
-```
-
-Defining some terms:
-  * a *Tensor View* is a logical slice of tensor-structured data; and
-  * a *Selection* is an expression to assemble a *Tensor View* from other tensors.
-
-> 📝 Note: a reminder that as these describe sharding operations, Tensor Views
-> are slices of tensor coordinate space; and a given Tensor View may be
-> indexed at any point in tensor space.
-
-A feature which appears to be present from the examined cases is that a 
-*Selection* routes each cell in its resultant *View* back to some cell in
-some source tensor.
-
-We can formalize this as a requirement:
-  * a *Selection* maps each coordinate in a *Tensor View* space to a $tensor, coordinate$ pair
-    of exactly one source tensor.
-
-Fundamentally, moving data from the output of one operation to the input of another operation,
-which may be on another machine, is an operation centered on copying portions of buffers;
-and by being careful in our restriction of legal *Selection* operations, we can evaluate
-them by simply copying *different* buffer data; many of these operations will have zero marginal cost
-over direct movement.
-
-#### Affine Selections
-
-Consider the following potential index/stride-manipulation *Selection* operations:
- * `permute/transpose` - reordering the dimension indexes of a tensor is free.
- * `reverse/flip` - flipping a tensor dimension is free.
- * `select` - selecting a subset of a tensor is free.
- * `stride` - skipping every `k` items along a dimension is free.
- * `squeeze/unsqueeze` - adding/removing a size-1 dimension is free.
- * `broadcast`<sup>\*</sup> - treat a size 1 dimension as though it were size `n`, without copying data.
-
-These operations are free on local tensors, because they're all indexing tricks;
-and can be implemented using discrete affine projections, the same as the index
-projection functions.
-
-On remote tensors, we can transmit the *Selection* operation to the tensor holder,
-evaluate the indexing trick operation where it is free, and transmit back the
-selected data block.
-
-> <sup>\*</sup>`broadcast` is something we'd much prefer to implement on the local consumer; as implementing broadcast
-> remotely would cause an unnecessary duplication of data. And we see now an operation where a good
-> optimizer may wish to rewrite a *Selection* cascade for efficiency in some situations.
-
-#### Composite Selections
-
-A careful reader of the given examples may note that we have a case for both some form of `concat`
-(for the example of fusing partial feature results from $Linear$); and of `interleave` (for
-the example of fusing the results of a sharded dilated convolution kernel).
-
- * `concat` - assemble a tensor view by concatenating multiple tensors along a dimension.
- * `interleave` - assemble a tensor view by interleaving multiple tensors along a dimension.
- * `repeat`<sup>\*</sup> - assemble a tensor view by repeating a tensor along a dimension.
- * `pad`<sup>\*</sup> - supply data outside the selection region with a default value, or a reflection.
- * `where`, `max`, `min` - conditionally construct a view by switching on the data from multiple views.
-
-These operations cannot be implemented using discrete affine projections; they generally perform
-routing by applying some range limit comparison operation, with or without a modulo, to one
-dimension of the input, and use that to derive a target tensor and new coordinates.
-
-On local machines, `concat` and `interleave` are generally implemented as full-copy operations,
-because otherwise supporting them as transparent views would require a tree of tensor view objects;
-but as *Selection* operations, they are still fundamentally performing simple index operations
-and then differing to a backing view.
-
-> <sup>\*</sup>`pad` and `repeat` are *Selection*s we'd also prefer to implement on the local consumer;
-> as the data is either a default value, or a reflection or duplication of data we already have;
-> and these are also good targets for Selection optimization and re-write.
-
-#### Atomic Selections
-
-We *could* define a *Selection* an arbitrary tree of the above or similar operations;
-but as each of these operations has real impact on the cost model of execution through
-data sharing impacts, and we desire to be able to see and optimize through those operations;
-we forbid composite selections:
-
-  * All *Selection* operations are "simple", and complex *Tensor Views* are assembled via trees of chained
-    atomic *Selections*; not composite *Selections*.
-
-> Under evaluation, it will generally be trivial to fuse *Selectors*; but for analytic modeling,
-> we keep them separate.
-
-#### An Example From Conv
-
-We now have the operations necessary to fully describe the previous dilated $Conv$ example:
-
-```graphviz
-digraph G {
-rankdir=LR;
-
-idx [
-shape="plain",
-label=<
-<table border="0">
-<tr><td>
-
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">i,j</td>
-              <td border="3">i,j+1</td>
-              <td>…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-	</td></tr>
-
-    <tr><td><i>index</i></td></tr>
-          </table>
-    >,
-];
-
-X [
-shape="plain",
-label=<
-<table cellpadding="8">
-<tr>
-<td bgcolor="#D6EAF8">⋱</td>
-<td border="3">…</td>
-<td bgcolor="#D6EAF8">…</td>
-<td border="3">…</td>
-<td bgcolor="#D6EAF8">…</td>
-<td border="3">…</td>
-<td>…</td>
-<td>⋰</td>
-</tr>
-<tr>
-<td bgcolor="#D6EAF8">…</td>
-<td border="3">…</td>
-<td bgcolor="#D6EAF8">x<sub>i,j</sub></td>
-<td border="3">x<sub>i,j+1</sub></td>
-<td bgcolor="#D6EAF8">…</td>
-<td border="3">…</td>
-<td>…</td>
-<td>…</td>
-</tr>
-<tr>
-<td bgcolor="#D6EAF8">…</td>
-<td border="3">…</td>
-<td bgcolor="#D6EAF8">…</td>
-<td border="3">…</td>
-<td bgcolor="#D6EAF8">…</td>
-<td border="3">…</td>
-<td>…</td>
-<td>…</td>
-</tr>
-<tr>
-<td>⋰</td>
-<td>…</td>
-<td>…</td>
-<td>…</td>
-<td>…</td>
-<td>…</td>
-<td>…</td>
-<td>⋱</td>
-</tr>
-</table>
->,
-];
-
-F [
-shape="plain",
-label=<
-<table cellpadding="8">
-<tr><td>
-<table bgcolor="#D5F5E3" cellpadding="8">
-<tr>
-<td >f<sub>a,b,k</sub></td>
-<td >…</td>
-<td>⋰</td>
-</tr>
-<tr>
-<td>…</td>
-<td>…</td>
-<td>…</td>
-</tr>
-<tr>
-<td>⋰</td>
-<td>…</td>
-<td>⋱</td>
-</tr>
-</table>
-</td></tr>
-</table>
->,
-];
-
-Conv [
-shape=rarrow,
-style=filled,
-fillcolor="#E5E8E8",
-margin=0.3
-];
-
-strides [
-label=<strides: [1,<b>2</b>,…]>,
-shape=rectangle,
-];
-
-strides -> Conv;
-
-Y [
-shape="plain",
-label=<
-<table cellpadding="8">
-<tr><td>
-
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">y<sub>i,j</sub></td>
-              <td border="3">y<sub>i,j+1</sub></td>
-              <td>…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-
-	  </td></tr>
-        </table>
-      >,
-];
-
-X -> Conv;
-F -> Conv;
-Conv -> Y;
-
-{ rank=same; idx; Conv; strides; }
-}
-```
-
-Where a dilated convolution input is sharded into dense convolutions; and the resulting
-dense results are interleaved back into the convolution result we would have seen
-if the original convolution had been applied:
-
-```graphviz
-digraph G {
-  rankdir=LR;
-
-  subgraph cluster_0 {
-  idx0 [
-    shape="plain",
-    label=<
-        <table border="0">
-    <tr><td>
-
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td>…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">i,m</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-	</td></tr>
-
-    <tr><td><i>index</i></td></tr>
-          </table>
-    >,
-  ];
-
-  X0 [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td bgcolor="#D6EAF8">⋱</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">x<sub>i,m</sub></td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-  
-  Conv0 [
-      label=<Conv<sub>m</sub>>,
-      shape=rarrow,
-      style=filled,
-      fillcolor="#E5E8E8",
-      margin=0.3
-  ];
-  
-  Y0 [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td bgcolor="#D6EAF8">⋱</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">y<sub>i,k</sub></td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  strides0 [
-      label=<strides: [1,<b>1</b>,…]>,
-      shape=rectangle,
-  ];
-
-  strides0 -> Conv0;
-  
-  Conv0 -> Y0;
-
-  { rank=same; idx0; Conv0; strides0; }
-  }
-
-  subgraph cluster_1 {
-  X1 [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td border="3">⋱</td>
-              <td border="3">…</td>
-              <td border="3">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td border="3">…</td>
-              <td border="3">x<sub>i,n</sub></td>
-              <td border="3">…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td border="3">…</td>
-              <td border="3">…</td>
-              <td border="3">…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  idx1 [
-    shape="plain",
-    label=<
-        <table border="0">
-    <tr><td>
-
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td>…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td border="3">i,n</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-	</td></tr>
-
-    <tr><td><i>index</i></td></tr>
-          </table>
-    >,
-  ];
-  Conv1 [
-      label=<Conv<sub>n</sub>>,
-      shape=rarrow,
-      style=filled,
-      fillcolor="#E5E8E8",
-      margin=0.3
-  ];
-
-  strides1 [
-      label=<strides: [1,<b>1</b>,…]>,
-      shape=rectangle,
-  ];
-  
-  Y1 [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td border="3">⋱</td>
-              <td border="3">…</td>
-              <td border="3">…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td border="3">…</td>
-              <td border="3">y<sub>i,k</sub></td>
-              <td border="3">…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td border="3">…</td>
-              <td border="3">…</td>
-              <td border="3">…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-
-  strides1 -> Conv1;
-  Conv1 -> Y1;
-
-  { rank=same; idx1; Conv1; strides1; }
-  }
-
-  X [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-          <tr>
-              <td bgcolor="#D6EAF8">⋱</td>
-              <td border="3">…</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td border="3">…</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td border="3">…</td>
-              <td>…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td border="3">…</td>
-              <td bgcolor="#D6EAF8">x<sub>i,j</sub></td>
-              <td border="3">x<sub>i,j+1</sub></td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td border="3">…</td>
-              <td>…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td bgcolor="#D6EAF8">…</td>
-              <td border="3">…</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td border="3">…</td>
-              <td bgcolor="#D6EAF8">…</td>
-              <td border="3">…</td>
-              <td>…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-      >,
-  ];
-  
-  Stride0 [
-    label=<Stride<sub>0</sub>>,
-    shape=parallelogram,
-    style=filled,
-    fillcolor="#a0d0d0",
-    color=black,
-  ];
-  Stride1 [
-    label=<Stride<sub>0</sub>>,
-    shape=parallelogram,
-    style=filled,
-    fillcolor="#a0d0d0",
-    color=black,
-  ];
-  
-  X -> Stride0;
-  X -> Stride1;
-
-  Stride0 -> X0;
-  Stride1 -> X1;
-
-  F [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-        <tr><td>
-      <table bgcolor="#D5F5E3" cellpadding="8">
-          <tr>
-              <td >f<sub>a,b,k</sub></td>
-              <td >…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-          	<td>⋰</td>
-              <td>…</td>
-          	<td>⋱</td>
-              </tr>
-          </table>
-	  </td></tr>
-        </table>
-      >,
-  ];
-
-  Y [
-      shape="plain",
-      label=<
-      <table cellpadding="8">
-        <tr><td>
-
-      <table cellpadding="8">
-          <tr>
-              <td>⋱</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋰</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td bgcolor="#D6EAF8">y<sub>i,j,k</sub></td>
-              <td border="3">y<sub>i,j+1,k</sub></td>
-              <td>…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              </tr>
-          <tr>
-              <td>⋰</td>
-              <td>…</td>
-              <td>…</td>
-              <td>…</td>
-              <td>⋱</td>
-              </tr>
-          </table>
-
-	  </td></tr>
-        </table>
-      >,
-  ];
-  
-  Inter [
-    label=<Interleave>,
-    shape=parallelogram,
-    style=filled,
-    fillcolor="#a0d0d0",
-    color=black,
-  ];
-
-  X0 -> Conv0;
-  F -> Conv0;
-
-  X1 -> Conv1;
-  F -> Conv1;
-  
-  Y0 -> Inter;
-  Y1 -> Inter;
-  Inter -> Y;
-}
-```
-
-#### Generators
-
-An additional potentially useful category of *Selector* are generators; consider:
-  * `zeros`, `ones`, `full` - generate a view full of a given value.
-  * `rand` - generate "random" data.
-
-Generators can be used to create an entire Tensor View on the local machine;
-as the data is a deterministic function, there's no data to transmit.
-
-##### Random Generators
-
-It is important to note that `rand` is an entire sub-category of problems:
-  * We require an idempotent, and thus deterministic random field;
-    in a given evaluation, we must be able to rebuild the *same* random
-    values every time a tensor view is accessed; so `rand` needs a seed
-    and to compute data as some function of the coordinate space.
-  * There are many random number generation distributions to select from,
-    before we consider that properties (such as $\sigma$) may be functions
-    of the input coordinates.
-
-It may prove simpler in practice to model random generators as block expressions
-than as *Selector* generators.
 
 ## Implementation Mechanics
 
