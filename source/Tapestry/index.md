@@ -80,6 +80,10 @@ The goal is:
 > (we can prove that it *can* be made fast); then make it easy to program for to
 > get more help; then make it fast.
 
+### Table of Contents
+
+<!-- toc -->
+
 ## Introduction
 
 This whitepaper describes "Tapestry", a concrete theory and system for implementing "distributed tensor expression
@@ -135,11 +139,6 @@ distributed pragmatics.
 
 This whitepaper covers the abstract tapestry expression language, the derivation of the formal semantics of that
 language, and the concrete pragmatics of implementing an evaluator for that language.
-
-### Table of Contents
-
-<!-- toc -->
-
 
 ## Background and Related Work
 
