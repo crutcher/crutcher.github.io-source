@@ -11,6 +11,10 @@ mathjax: true
 
 ## A Note For Reviewers
 
+| TODO                                                        |
+|-------------------------------------------------------------|
+| Rewrite all graphs to flow from definitions to dependencies |
+
 This is an in-progress draft, to define the background material and theory for an
 optimizing tensor expression compilation and evaluation toolchain;
 As such, it's incomplete; and will grow as I expand and firm up the representation
@@ -5983,9 +5987,26 @@ digraph G {
           </table>
       >,
   ];
+  
+  S0 [
+    label=<stride[:, 0:2]>,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  S1 [
+    label=<stride[:, 1:2]>,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
 
-  X -> X0;
-  X -> X1;
+  X -> S0 -> X0;
+  X -> S1 -> X1;
 
   F [
       shape="plain",
@@ -6058,11 +6079,27 @@ digraph G {
 
   X0 -> Conv0;
   F -> Conv0;
-  Conv0 -> Y;
+  Conv0 -> SI;
 
   X1 -> Conv1;
   F -> Conv1;
-  Conv1 -> Y;
+  Conv1 -> SI;
+  
+  SI [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>interleave</td></tr>
+         <tr><td>dim=1</td></tr>
+         </table>
+    >,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  
+  SI -> Y;
 }
 ```
 
