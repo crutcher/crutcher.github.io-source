@@ -197,8 +197,16 @@ This is work in the same space as existing tensor environments and compilers:
 * [jax pjit](https://jax.readthedocs.io/en/latest/jax-101/08-pjit.html)
 * [MLIR](https://mlir.llvm.org/)
 * [pytorch tau](https://github.com/pytorch/tau)
+* [Apache TVM](https://tvm.apache.org/docs/index.html)
 
-It also extends many ideas from existing environments:
+Of these, [Apache TVM](https://tvm.apache.org/docs/index.html) bears the closest resemblance
+of the design ideas here. TVM appears to be focused on being an effective compiler backend
+for single-machine programs which originate in python `numpy` semantics; it bears watching closer,
+but it appears to be a top-down approach to building a smarter compiler targeting various single
+machine hardware backends; rather than focusing on a bottom up theory of distributed evaluation
+and optimization. TVM may be a good backend target for local operation lowering.
+
+Tapestry also extends many ideas from existing environments:
 
 * Data Pipeline Languages
     * [Apache Spark](https://spark.apache.org/)
@@ -358,11 +366,13 @@ which includes a great deal of modern engineering and physical sciences applicat
 * Expressions
     * Selectors Expressions
     * Block Operator Expressions
-    * Load and Sink Operators
+    * Source and Sink Operators
 * Expression Signatures
 * Cost Models
     * Tensor Costs
     * Marginal Costs
+
+Let *TEL* be the "Tapestry Expression Language"
 
 ```graphviz
 digraph G {
@@ -435,6 +445,14 @@ digraph G {
      >,
   ];
   
+  Sig [
+      label=<Signature>,
+      shape=component,
+      margin=0.25,
+      style=filled,
+      fillcolor="#ffffd0";
+  ];
+  
   Add [
       shape=rarrow,
       margin=0.25,
@@ -443,6 +461,9 @@ digraph G {
   ];
   Add -> B;
   Add -> A;
+  
+  Add -> Sig [constraint=false];
+  { rank=same; Sig; Add; }
   
   C [
      label=<
@@ -526,17 +547,187 @@ digraph G {
 
 A *Tensor Node* represents a logical tensor.
 
+A *Tensor Node* has exactly one dependency, which may be either:
+ * a *Source Node*,
+ * a *Selector Node*,
+ * a *Block Operator Node*.
+
 Each tensor node:
 * has its origin at 0;
 * has a shape;
 * has a single data type;
 * is dense and contiguous.
 
+### Selector Nodes
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  A1, A2, A [shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+  A1 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: A.1</td></tr>
+         <tr><td>[500, 10]</td></tr>
+         </table>
+     >,
+  ];
+  A2 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: A.2</td></tr>
+         <tr><td>[500, 10]</td></tr>
+         </table>
+     >,
+  ];
+  
+  SA [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td><i>selector</i></td></tr>
+         <tr><td><i>{param: value}</i></td></tr>
+         </table>
+    >,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  SA -> A1;
+  SA -> A2;
+  
+  A [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: A</td></tr>
+         <tr><td>[1000, 10]</td></tr>
+         </table>
+     >,
+  ];
+  A -> SA;
+}
+```
+
+A *Selector Node* represents a view transform / data selection over input tensors.
+
+A *Selector Node* has:
+* 0 or more *named* *Tensor Node* dependencies;
+* Exactly one *named* *Tensor Node* output;
+* some number of node parameters.
+
+> 📝 Note:
+> The primary difference between *Selector Nodes* and *Block Operator Nodes* is
+> the analytic transparency of the operation; every cell in the output node is
+> a function of a known mapping over the input nodes.
+
+### Block Operator and Signature Nodes
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  A, B, C [shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+  A [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: A</td></tr>
+         <tr><td>[1000, 10]</td></tr>
+         </table>
+     >,
+  ];
+  
+  B [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: B</td></tr>
+         <tr><td>[10]</td></tr>
+         </table>
+     >,
+  ];
+  
+  Sig [
+      label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>Signature</td></tr>
+         <tr><td><i>index</i></td></tr>
+         <tr><td><i>{input: projection}</i></td></tr>
+         <tr><td><i>{output: projection}</i></td></tr>
+         <tr><td><i>marginal costs</i></td></tr>
+         </table>
+      >,
+      shape=component,
+      margin=0.25,
+      style=filled,
+      fillcolor="#ffffd0";
+  ];
+  
+  Op [
+      label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td><i>operator</i></td></tr>
+         <tr><td><i>{param: value}</i></td></tr>
+         </table>
+      >,
+      shape=rarrow,
+      margin=0.25,
+      style=filled,
+      fillcolor="#E5E8E8",
+  ];
+  Op -> B;
+  Op -> A;
+  
+  Op -> Sig [constraint=false];
+  { rank=same; Sig; Op; }
+  
+  C [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: C</td></tr>
+         <tr><td>[1000, 10]</td></tr>
+         </table>
+     >
+  ];
+  C -> Op;
+  
+}
+```
+
+A *Block Operator Node* represents a parallel block computation over input tensors.
+
+A *Block Operator Node* has:
+* a *Block Index*, which is a dense ZSpace range;
+* 0 or more *named* *Tensor Node* dependencies;
+* Exactly one *Signature* dependency;
+* 0 or more *named* *Tensor Node* outputs;
+* some number of node parameters.
+
+A *Signature Node* represents the block sharding signature of *Block Operator Nodes*.
+
+A *Signature Node* has:
+* no dependencies; 
+* a map from *named* inputs to *Index Projections* for those inputs;
+* a map from *named* outputs to *Index Projections* for those inputs;
+* a *Marginal Cost* map.
+
+> 📝 Note: TBD;
+> There is an unresolved implementation detail with regard to Source, Sink, and
+> Block Operator Nodes. Source and Sink nodes could be modeled as *Block Operator
+> Nodes*; but doing so lifts additional constraints about their handling into
+> the formal semantics.
+> 
+> A *pinned* Block Operator Node could be introduced to describe block operations
+> which are constrained to be evaluated and not pruned; and *Sink* could be modeled
+> as such a *pinned operator*. Doing so provides a mechanism to model value exporting
+> side effect IO behavior directly; which would de-specialize *Sink* nodes.
+
 ### Source and Sink Nodes
 
 ```graphviz
 digraph G {
-  rankdir=LR;
+  rankdir=RL;
   
   Source, Sink [
      shape=cds,
@@ -565,11 +756,16 @@ A *Source Node* may represent real work (load the tensor from a database);
 or may exist to constrain optimization solutions (this tensor is in memory
 on this given machine).
 
+A *Source Node* has no dependencies; and produces a single *Tensor Node*.
+
 A *Sink Node* represents a process which stores or makes the contents
 of a *Tensor Node* accessible outside the expression environment after
 evaluation is complete. It may also represent real work (store this tensor
 to a file system or database); or it may represent a constraint that
 the tensor is in the cache on a given target machine.
+
+A *Sink Node* has exactly one *Tensor Node* dependency; and can not
+be the dependency of another node.
 
 ## Expression Evaluation Theory Derivation
 
@@ -5795,20 +5991,20 @@ There are two broad approaches to realize this goal, which will be explored in l
 In practice, these two approaches are isomorphic to each other; though in some situations
 some problems are easier to express in one or the other approach. We'll develop both.
 
-### Load and Sink Operators
+### Source and Sink Operators
 
 > TODO: flesh out.
 
 * Where do tensors come from, at the beginning of an expression?
 * How do we constrain result tensors to be stored in particular locations?
 
-These pragmatics can be modeled by the introduction of *Load* and *Sink* operator
+These pragmatics can be modeled by the introduction of *Source* and *Sink* operator
 expressions.
 
-A *Load* operator has a trivial one-element index space, and produces the tensor
+A *Source* operator has a trivial one-element index space, and produces the tensor
 shard it is defined for as its only output. Under scheduling optimization,
 that operation can be constrained to be scheduled local to the compute resource
-where the input data is provided. *Load* operators are well-behaved in the value
+where the input data is provided. *Source* operators are well-behaved in the value
 semantics, if nothing looks at their data, they can be safely pruned.
 
 A *Sink* operator is the reverse; it also has a trivial one-element index space,
@@ -5822,7 +6018,7 @@ These operators could perform any arbitrary IO, reading and writing to and from
 existing memory resources, local or remote disks, databases, or even data transform
 operations.
 
-There are reasons to define abstract large index *Load* and *Sink*
+There are reasons to define abstract large index *Source* and *Sink*
 operators, as some execution environments may not have predefined data layout,
 or the operators may exist to describe gateway processes which need to be
 scheduled to read or write data from or to another service; in these
