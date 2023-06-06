@@ -23,22 +23,24 @@ of the ideas.
 
 What's the TL;DR?
 
- * Small, easy to write programs which use 100s of GPUs to solve large problems efficiently.
+* Small, easy to write programs which use 100s of GPUs to solve large problems efficiently.
 
-This is the most expensive problem in computer science that I know of; we can conservatively estimate
+This is the most expensive problem in computer science that I know of; we can conservatively
+estimate
 that 1/2 to 3/4 of current big-compute and AI costs are simply wasted by the inefficiencies of
 the pragmatics of the current approaches.
 
 This is a large project, it's far too big to write in one go and have the results be readable; and
 your efforts to review and provide feedback are extremely welcome.
 
-I'm looking for help making this material accessible to the widest possible audience. I'm particularly
+I'm looking for help making this material accessible to the widest possible audience. I'm
+particularly
 interested in feedback on:
 
- * Sections which need to be expanded or added;
- * Terminology used without sufficient introduction;
- * Graphs or Charts which are confusing, or need additional discussion or callouts;
- * And any awkward or confusing wording.
+* Sections which need to be expanded or added;
+* Terminology used without sufficient introduction;
+* Graphs or Charts which are confusing, or need additional discussion or callouts;
+* And any awkward or confusing wording.
 
 I am of the professional opinion that this project requires no *new* computer science;
 just the careful and methodical application of pieces from a number of sub-fields.
@@ -53,10 +55,11 @@ A and B, B and C, or C and D together; it's that most systems that have
 incrementally implemented A, then added B, then added C, then added D have
 then encountered constraints on A and D, which derive from each other, that
 were not visible from A or D alone; and by the time these large systems were
-in place, the issues were too expensive to fix. If we start off knowing we want the full stack, and defer building
+in place, the issues were too expensive to fix. If we start off knowing we want the full stack, and
+defer building
 something "useful and quick" until the math is fully resolved, we can avoid that design problem.
 
-Alternatively, if you want to help *write* some of this, or help with implementation; again, I'd be 
+Alternatively, if you want to help *write* some of this, or help with implementation; again, I'd be
 ecstatic.
 
 Thank you for efforts to make this more readable - Crutcher
@@ -72,7 +75,8 @@ preview applications written in the block operation graph language.
 From this stage onward, development will bifurcate:
 
 * Applications and extensions written *above* the block operation language; and
-* Optimization research and operational implementation work done *below* the block operation language.
+* Optimization research and operational implementation work done *below* the block operation
+  language.
 
 The goal is:
 
@@ -86,11 +90,16 @@ The goal is:
 
 ## Introduction
 
-This whitepaper describes "Tapestry", a concrete theory and system for implementing "distributed tensor expression
-evaluators". In this context, "distributed" means targeting resources and execution on multiple computers
-simultaneously. A "tensor" is a multidimensional array, consisting of a single number, `2`, an array of numbers,
-`[3.5, 2.5]`, a matrix, `[[2, 3], [4, 5]]`, or a larger multidimensional array. "Expressions" are operations
-on one or more tensors, which produce new tensors. Evaluators are systems for running expressions and generating
+This whitepaper describes "Tapestry", a concrete theory and system for implementing "distributed
+tensor expression
+evaluators". In this context, "distributed" means targeting resources and execution on multiple
+computers
+simultaneously. A "tensor" is a multidimensional array, consisting of a single number, `2`, an array
+of numbers,
+`[3.5, 2.5]`, a matrix, `[[2, 3], [4, 5]]`, or a larger multidimensional array. "Expressions" are
+operations
+on one or more tensors, which produce new tensors. Evaluators are systems for running expressions
+and generating
 values.
 
 For example, the following expressions produce the corresponding results:
@@ -111,52 +120,76 @@ this batch as a tensor, though we might choose to do so in different ways:
 * `[10_000_000, 3, 256, 256]` - as batch, color channel, height, and width.
 
 Assuming a byte-valued tensor with values ranging from 0 to 255; this tensor would be 32 TB of data.
-Suppose we wished to convert the byte valued 0 - 255 `X` to a float16 (2 bytes) valued 0 - 1.0 `Y` tensor;
+Suppose we wished to convert the byte valued 0 - 255 `X` to a float16 (2 bytes) valued 0 - 1.0 `Y`
+tensor;
 Abstractly, this is as simple to describe as `Y := float(X) / 255.0`; but `Y` is 62 TB of data.
 Where do we put the input data? Where does the output data go? How do we manage the conversions?
 And how do we get there from `Y := float(X) / 255.0`?
 
-Tapestry allows us to describe mathematical operations that are relatively simple to author, but may describe very large
-amounts of data and operations. However, implementing these operations requires orchestrating many data transfers and
+Tapestry allows us to describe mathematical operations that are relatively simple to author, but may
+describe very large
+amounts of data and operations. However, implementing these operations requires orchestrating many
+data transfers and
 batched operations, which can be difficult and inefficient.
 
-The cost of implementing large distributed mathematics dominates the costs of modern AI and computational modeling. This
-is true for applications such as fluid flow or weather simulation and protein modeling. Both the development costs of
-the programs and the resource costs of computers running inefficient implementations of large math evaluators contribute
+The cost of implementing large distributed mathematics dominates the costs of modern AI and
+computational modeling. This
+is true for applications such as fluid flow or weather simulation and protein modeling. Both the
+development costs of
+the programs and the resource costs of computers running inefficient implementations of large math
+evaluators contribute
 to this problem.
 
-By contrast, `SQL` expression evaluators allow the manipulation and querying of vast amounts of information distributed
-over databases that span hundreds of machines. `SQL` achieves this by establishing a strong formal declarative abstract
-language, where users can describe the operations they wish to perform in a language that hides the pragmatics, but does
-so in such a way that the `SQL` evaluation environments can effectively transform, optimize, and shard those
+By contrast, `SQL` expression evaluators allow the manipulation and querying of vast amounts of
+information distributed
+over databases that span hundreds of machines. `SQL` achieves this by establishing a strong formal
+declarative abstract
+language, where users can describe the operations they wish to perform in a language that hides the
+pragmatics, but does
+so in such a way that the `SQL` evaluation environments can effectively transform, optimize, and
+shard those
 descriptions into efficient underlying pragmatic schedules and execution plans.
 
-Tapestry is a proposal for such a formal declarative abstract language, covering expressions consuming and producing
-tensor values. The programming surface, the abstract formal language, which users would read, write, and interact with,
-is a relatively small surface, similar to `SQL`. However, the definitions of the semantics of the operators have been
-chosen to enable aggressive and *correct* (value preserving) optimization of these expressions into efficient
+Tapestry is a proposal for such a formal declarative abstract language, covering expressions
+consuming and producing
+tensor values. The programming surface, the abstract formal language, which users would read, write,
+and interact with,
+is a relatively small surface, similar to `SQL`. However, the definitions of the semantics of the
+operators have been
+chosen to enable aggressive and *correct* (value preserving) optimization of these expressions into
+efficient
 distributed pragmatics.
 
-This whitepaper covers the abstract tapestry expression language, the derivation of the formal semantics of that
+This whitepaper covers the abstract tapestry expression language, the derivation of the formal
+semantics of that
 language, and the concrete pragmatics of implementing an evaluator for that language.
 
 ## Background and Related Work
 
-This document describes my ongoing research on the design and implementation of shardable tensor expression languages.
+This document describes my ongoing research on the design and implementation of shardable tensor
+expression languages.
 It serves as a single entry point for the project, which will take some time to fully develop.
 
-This work is related to existing tensor environments and compilers, including JAX, MLIR, and PyTorch Tau. It also builds
-upon ideas from other domains, such as data pipeline languages like Apache Spark and Google Dataflow, graph-rewriting
+This work is related to existing tensor environments and compilers, including JAX, MLIR, and PyTorch
+Tau. It also builds
+upon ideas from other domains, such as data pipeline languages like Apache Spark and Google
+Dataflow, graph-rewriting
 functional languages like Haskell and OCaml, and SQL.
 
-Existing work in this field has mainly focused on improving the distribution and performance of existing languages and
-environments. However, that work is constrained by the semantics of those environments and backends. Distributed work
-needs to retain the look and feel of existing data science languages, while local kernel work focuses heavily on
+Existing work in this field has mainly focused on improving the distribution and performance of
+existing languages and
+environments. However, that work is constrained by the semantics of those environments and backends.
+Distributed work
+needs to retain the look and feel of existing data science languages, while local kernel work
+focuses heavily on
 exploiting specific GPU/TPU hardware.
 
-In contrast, this work takes a bottom-up, shardable-by-construction approach to the distributed tensor expression
-problem. Each core operation is designed to be shardable, as is each operation composition and each graph rewrite. The
-goal is to derive a semantic core with the fewest possible prior operators and constraints, enabling the use of
+In contrast, this work takes a bottom-up, shardable-by-construction approach to the distributed
+tensor expression
+problem. Each core operation is designed to be shardable, as is each operation composition and each
+graph rewrite. The
+goal is to derive a semantic core with the fewest possible prior operators and constraints, enabling
+the use of
 aggressive stochastic graph rewrite optimizers.
 
 This is work in the same space as existing tensor environments and compilers:
@@ -316,20 +349,227 @@ An effective tapestry environment sufficient to host finite element simulations
 would permit accelerated research into anything built upon finite element simulations;
 which includes a great deal of modern engineering and physical sciences applications.
 
-
 ## Expression Language Definition
 
-> TBD: collect a definition-oriented description of the choices derived in the derivation section here.
+> TBD: collect a definition-oriented description of the choices derived in the derivation section
+> here.
 
- * Tensors
- * Expressions
-   * Selectors Expressions
-   * Block Operator Expressions
-   * Load and Sink Operators
- * Expression Signatures
- * Cost Models
-   * Tensor Costs
-   * Marginal Costs
+* Tensors
+* Expressions
+    * Selectors Expressions
+    * Block Operator Expressions
+    * Load and Sink Operators
+* Expression Signatures
+* Cost Models
+    * Tensor Costs
+    * Marginal Costs
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  SourceA1, SourceA2, SourceB [
+     shape=cds,
+     fillcolor="#E5E8E8",
+     style=filled,
+  ];
+  
+  SourceA1 [label="Source: A1"];
+  SourceA2 [label="Source: A2"];
+  SourceB [label="Source: B"];
+  
+  A1 -> SourceA1;
+  A2 -> SourceA2;
+  
+  B -> SourceB;
+  
+  A1, A2, A, B [shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+  A1 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: A.1</td></tr>
+         <tr><td>[500, 10]</td></tr>
+         </table>
+     >,
+  ];
+  A2 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: A.2</td></tr>
+         <tr><td>[500, 10]</td></tr>
+         </table>
+     >,
+  ];
+  SA [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>concat</td></tr>
+         <tr><td>dim=0</td></tr>
+         </table>
+    >,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  SA -> A1;
+  SA -> A2;
+  A [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: A</td></tr>
+         <tr><td>[1000, 10]</td></tr>
+         </table>
+     >,
+  ];
+  A -> SA;
+  
+  B [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: B</td></tr>
+         <tr><td>[10]</td></tr>
+         </table>
+     >,
+  ];
+  
+  Add [
+      shape=rarrow,
+      margin=0.25,
+      style=filled,
+      fillcolor="#E5E8E8",
+  ];
+  Add -> B;
+  Add -> A;
+  
+  C [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: C</td></tr>
+         <tr><td>[1000, 10]</td></tr>
+         </table>
+     >,
+     shape=box3d, fillcolor="#d0d0ff", style=filled];
+  C -> Add;
+  
+  SC1, SC2 [
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  
+  SC1 [ label=<slice[0:500, :]> ];
+  SC2 [ label=<slice[500:, :]>, ];
+  
+  SC1 -> C;
+  SC2 -> C;
+  
+  C1, C2 [shape=box3d, fillcolor="#d0d0ff", style=filled];
+  C1 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: C.1</td></tr>
+         <tr><td>[500, 10]</td></tr>
+         </table>
+     >,
+  ];
+  C2 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: C.2</td></tr>
+         <tr><td>[500, 10]</td></tr>
+         </table>
+     >,
+  ];
+   
+  SinkC1, SinkC2 [
+     shape=cds,
+     fillcolor="#E5E8E8",
+     style=filled,
+  ];
+  
+  C1 -> SC1;
+  C2 -> SC2;
+  
+  SinkC1 [label="Sink: C1"];
+  SinkC2 [label="Sink: C2"];
+  
+  SinkC1 -> C1;
+  SinkC2 -> C2;
+}
+```
+
+### Tensor Nodes
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  T [
+     label=<
+       <table border="0">
+         <tr><td>Tensor</td></tr>
+         <tr><td>[s0, s1, ...]</td></tr>
+         <tr><td>float16</td></tr>
+         </table>
+     >,
+     shape=box3d,
+     fillcolor="#d0d0ff",
+     style=filled,
+  ];
+}
+```
+
+A *Tensor Node* represents a logical tensor.
+
+Each tensor node:
+* has its origin at 0;
+* has a shape;
+* has a single data type;
+* is dense and contiguous.
+
+### Source and Sink Nodes
+
+```graphviz
+digraph G {
+  rankdir=LR;
+  
+  Source, Sink [
+     shape=cds,
+     fillcolor="#E5E8E8",
+     style=filled,
+  ];
+  T [
+     label=<
+       <table border="0">
+         <tr><td>Tensor</td></tr>
+         <tr><td>[s0, s1, ...]</td></tr>
+         <tr><td>float16</td></tr>
+         </table>
+     >,
+     shape=box3d,
+     fillcolor="#d0d0ff",
+     style=filled,
+  ];
+  
+  Sink -> T -> Source;
+}
+```
+
+A *Source Node* represents a process which generates a *Tensor Node*.
+A *Source Node* may represent real work (load the tensor from a database);
+or may exist to constrain optimization solutions (this tensor is in memory
+on this given machine).
+
+A *Sink Node* represents a process which stores or makes the contents
+of a *Tensor Node* accessible outside the expression environment after
+evaluation is complete. It may also represent real work (store this tensor
+to a file system or database); or it may represent a constraint that
+the tensor is in the cache on a given target machine.
 
 ## Expression Evaluation Theory Derivation
 
@@ -345,13 +585,14 @@ known as the "halting problem").
 
 The watchword of this derivation will be "Value Equivalence":
 
- * Two expression graphs are equivalent if all observed values of the graphs are the same.
+* Two expression graphs are equivalent if all observed values of the graphs are the same.
 
 Rigorously defining value equivalence permits us to define legal, value preserving rewrites
 which can be applied during cost optimization (which is covered in a different section);
 the focus of this section will be on defining that equivalence.
 
 For instance, consider an expression describing the addition of two large tensors `A` and `B`:
+
 ```
 C = A + B
 ```
@@ -359,9 +600,9 @@ C = A + B
 If `A` and `B` are both multi-petabyte objects, how can we describe the operational semantics
 of computing and storing `C`?
 
- * `A` and `B` are distributed sharded objects (stored on multiple machines);
- * the component addition operations need to happen on some collection of machines;
- * `C` will need to be reified as a distributed sharded object.
+* `A` and `B` are distributed sharded objects (stored on multiple machines);
+* the component addition operations need to happen on some collection of machines;
+* `C` will need to be reified as a distributed sharded object.
 
 While our motivation lies primarily in computing data, in the `+` portion of the above
 semantics, we'll begin with an exploration of what it means to select, copy, and move data;
@@ -388,37 +629,57 @@ However, quite a few pieces of the current system pose problems for these *smart
 If, as an exercise, we drop any notion of compatibility with existing `numpy`-derived
 apis; I'm interested in the question of how far we can get?
 
-When designing new evaluation languages, it is important to start with informal semantics that clearly and simply
-express the concepts we want to convey. We should also consider operational requirements, such as desired resource
-usage (CPU, memory, networks, etc.). From there, we can look for systems of formal semantics that use established
-building blocks in math and computer science. This approach helps us achieve our design goals as closely as possible.
+When designing new evaluation languages, it is important to start with informal semantics that
+clearly and simply
+express the concepts we want to convey. We should also consider operational requirements, such as
+desired resource
+usage (CPU, memory, networks, etc.). From there, we can look for systems of formal semantics that
+use established
+building blocks in math and computer science. This approach helps us achieve our design goals as
+closely as possible.
 
-A functor embedding provides a formal way to describe how one evaluation system can be embedded in another in a
-transparent and correct way. This technique is commonly used to ensure that a program designed for one system can be
-used on another without issues. It is important to note that this process requires a deep understanding of both systems
-to ensure embedding is done correctly. A functor embedding can be a useful tool for developers, allowing them to reuse
-code and avoid rewriting entire programs from scratch. It can also help simplify the development process by reducing the
-time and effort required to create new programs. Overall, a functor embedding is a powerful technique for streamlining
+A functor embedding provides a formal way to describe how one evaluation system can be embedded in
+another in a
+transparent and correct way. This technique is commonly used to ensure that a program designed for
+one system can be
+used on another without issues. It is important to note that this process requires a deep
+understanding of both systems
+to ensure embedding is done correctly. A functor embedding can be a useful tool for developers,
+allowing them to reuse
+code and avoid rewriting entire programs from scratch. It can also help simplify the development
+process by reducing the
+time and effort required to create new programs. Overall, a functor embedding is a powerful
+technique for streamlining
 development and ensuring programs are efficient and effective.
 
-We can think of this process as searching for functor embeddings that have certain properties. When we find a functor
-embedding that aligns with an abstract execution environment while having semantics similar to the machine environments
+We can think of this process as searching for functor embeddings that have certain properties. When
+we find a functor
+embedding that aligns with an abstract execution environment while having semantics similar to the
+machine environments
 we want to target, translating from the functor embedding to the actual machines is often easy.
 
-While searching for good embeddings, we may come across a system of formal semantics that is somewhat close to our
-original informal semantics. We can either force alignment or adjust our goals and take advantage of the formal semantic
+While searching for good embeddings, we may come across a system of formal semantics that is
+somewhat close to our
+original informal semantics. We can either force alignment or adjust our goals and take advantage of
+the formal semantic
 system that we’ve found. Personally, I prefer the latter approach.
 
-This design approach is particularly useful when creating new programming languages or evaluating the performance of
-existing ones. By starting with an understanding of informal semantics and operational requirements, we can ensure that
+This design approach is particularly useful when creating new programming languages or evaluating
+the performance of
+existing ones. By starting with an understanding of informal semantics and operational requirements,
+we can ensure that
 our formal semantics are well-suited to the task at hand.
 
-It is important to keep in mind the target machines for our evaluation languages as we search for functor embeddings.
-Finding an embedding that aligns well with an abstract execution environment similar to our target machines can greatly
+It is important to keep in mind the target machines for our evaluation languages as we search for
+functor embeddings.
+Finding an embedding that aligns well with an abstract execution environment similar to our target
+machines can greatly
 simplify the translation process.
 
-In cases where the formal semantics we discover are not a perfect match for our original informal semantics, we have two
-options: we can either force alignment or adjust our goals. In my experience, adjusting our goals to take advantage of
+In cases where the formal semantics we discover are not a perfect match for our original informal
+semantics, we have two
+options: we can either force alignment or adjust our goals. In my experience, adjusting our goals to
+take advantage of
 the formal semantic system we've found is often the most efficient approach.
 
 ### Piecewise Tensors
@@ -435,7 +696,8 @@ And *some* parts of a tensor may be local to a target consumer, while others are
 so we know our formal semantics must expose and model the piecewise construction of abstract
 tensors from sharded components located on a resource locality graph.
 
-To begin to make this concrete, suppose we have some logical tensor view `X` of shape `[1000, 10, 10]`,
+To begin to make this concrete, suppose we have some logical tensor view `X` of
+shape `[1000, 10, 10]`,
 composed piecewise from tensors `X.1` and `X.2` each of shape `[500, 10, 10]`:
 
 ```graphviz
@@ -526,10 +788,11 @@ digraph G {
   X -> S;
 }
 ```
+
 > 📝 Note: `concat` is an operation which concatenates existing tensors into a new, larger
- > tensor along the given dimension. There are shape and correctness restrictions
- > (the other dimensions must be the same shape, the datatype must match) which
- > are important to `concat`, but not important to the current discussion.
+> tensor along the given dimension. There are shape and correctness restrictions
+> (the other dimensions must be the same shape, the datatype must match) which
+> are important to `concat`, but not important to the current discussion.
 
 A "Selector Expression" doesn't change data, it provides a recipe for defining
 views of subsets of data which have already been defined under a new geometric view.
@@ -592,7 +855,7 @@ digraph G {
 ```
 
 As the resultant view of `X` is defined in terms of views on its parts; no entity `X` needs
-to ever *exist* anywhere, provided we will only be consuming pieces of it; we can take the 
+to ever *exist* anywhere, provided we will only be consuming pieces of it; we can take the
 ranges of `X` we wish an operation to act upon, map those ranges through the Selector Expression
 `concat`, and determine which ranges of the component source tensors to select the data from
 when needed.
@@ -617,7 +880,7 @@ T := [8, 9, 10, 11]
 
 This tensor has 1-dimension, a *shape* (`[4]`), and a *size* (`4`) defined as the product
 of the shape. To find the value of the `T[2]` element, we'd start from the beginning of
-the data, and take 2 steps, arriving at `10`. In this situation, the tensor also has another field 
+the data, and take 2 steps, arriving at `10`. In this situation, the tensor also has another field
 *strides* (`[1]`) which defines how large a step to take in a given dimension.
 
 Our simple 1-dimensional array `T` might therefore be:
@@ -736,11 +999,11 @@ in the input coordinate space to a flat location in some buffer space.
 As such, there are many mechanical transformations which can be applied to this offset
 mapping to produce different effects without changing or copying the underlying buffer, for example:
 
- * arbitrarily reordering dimensions
- * reversing a dimension
- * selecting a subset tensor which holds one dimension fixed
- * selecting a subset tensor which takes regular strides along a dimension
- * etc.
+* arbitrarily reordering dimensions
+* reversing a dimension
+* selecting a subset tensor which holds one dimension fixed
+* selecting a subset tensor which takes regular strides along a dimension
+* etc.
 
 These are the view pragmatics underlying tensor representations; provided that access
 to the tensor is random (we can access it in any order) and *O(1)* (the access cost
@@ -751,7 +1014,7 @@ view transformations have no underlying costs.
 > direct memory access block reads, contiguous accesses are faster, and algorithms
 > can be improved by careful layout planning. This is commonly done by dedicated
 > vector compilers for a particular machine target.
-> 
+>
 > It is possible to mark the physical layout an operation will produce
 > on output; and the preferred physical layout an operation desires
 > on input, and to trace these through a solution graph to achieve
@@ -759,7 +1022,7 @@ view transformations have no underlying costs.
 > which we'll ignore while developing the remaining theory.
 > It can be mechanically added to a graph solver at a later point
 > as a layout pragma; and it does have impact on cost models.
-> 
+>
 > At the planning level under consideration, distributed operations
 > moving data *between* machines, the impact of non-contiguous layouts
 > is negligible compared to most cross-machine transfer operations;
@@ -767,7 +1030,7 @@ view transformations have no underlying costs.
 > transfers, at which point the engineering resources necessary to
 > model the preferred layout in the solvers should track with system
 > benefits.
-> 
+>
 > When we care about the speed impact, we'll be able to afford solving
 > it without a total rewrite.
 
@@ -799,6 +1062,7 @@ Consider shape `[1, 1, 4, 1]`, and let's call this `V`:
 | strides | [0, 0, 1, 0]   |
 
 Calculating the offset of `V[0, 0, 2, 0]`:
+
 ```
 V[0, 0, 2, 0] = data[offset + c[0]*strides[0] + c[1]*strides[1] + c[2]*strides[2] + c[3]*strides[3]]
 V[0, 0, 2, 0] = data[0 + 0*0 + 0*0 + 2*1 + 0*0]
@@ -843,10 +1107,11 @@ As we've informally seen the need for composite view operations, and explored so
 indexing view pragmatics, we can make a case that we'd like *Selector Expressions* which
 either:
 
- * Define a *Tensor View* as an index transformation of an existing *Tensor View*; or
- * Define a *Tensor View* as some composition of one or more existing *Tensor Views*
+* Define a *Tensor View* as an index transformation of an existing *Tensor View*; or
+* Define a *Tensor View* as some composition of one or more existing *Tensor Views*
 
 A rough list of index transformations we've previously discussed would include:
+
 * `permute/transpose` - reordering the dimension indexes of a tensor is free.
 * `reverse/flip` - flipping a tensor dimension is free.
 * `select` - selecting a subset of a tensor is free.
@@ -856,20 +1121,24 @@ A rough list of index transformations we've previously discussed would include:
 
 We already know we'll need `concat`, but there are a few other common composition selectors
 worth mentioning at this point:
+
 * `concat` - assemble a tensor view by concatenating multiple tensors along a dimension.
 * `interleave` - assemble a tensor view by interleaving multiple tensors along a dimension.
 * `repeat`<sup>\*</sup> - assemble a tensor view by repeating a tensor along a dimension.
-* `pad`<sup>\*</sup> - supply data outside the selection region with a default value, or a reflection.
-* `where`, `max`, `min` - conditionally construct a view by switching on the data from multiple views.
+* `pad`<sup>\*</sup> - supply data outside the selection region with a default value, or a
+  reflection.
+* `where`, `max`, `min` - conditionally construct a view by switching on the data from multiple
+  views.
 
-> 📝 Note: <sup>\*</sup>`pad` and `repeat` are *Selection*s we'd also prefer to implement on the local consumer;
+> 📝 Note: <sup>\*</sup>`pad` and `repeat` are *Selection*s we'd also prefer to implement on the
+> local consumer;
 > as the data is either a default value, or a reflection or duplication of data we already have;
 > and these are also good targets for Selection optimization and re-write.
 
 > 📝 Note: `broadcast` and `repeat` are similar, but not the same. A combination of `unsqueeze`
 > and `broadcast` permits us to construct a new dimension, and then duplicate data along
 > that dimension; but does not permit us to repeat the data in a dimension.
-> 
+>
 > It is possible to model an operation like `repeat` by adding modulo arithmetic to
 > the view indexing operations; or to model it as an application to `concat`.
 >
@@ -892,6 +1161,7 @@ original code and can be a barrier to understanding.
 #### Generators
 
 An additional potentially useful category of *Selector Expressions* are generators; consider:
+
 * `zeros`, `ones`, `full` - generate a view full of a given value.
 * `rand` - generate "random" data.
 
@@ -901,6 +1171,7 @@ as the data is a deterministic function, there's no data to transmit.
 ##### Random Generators
 
 It is important to note that `rand` is an entire sub-category of problems:
+
 * We require an idempotent, and thus deterministic random field;
   in a given evaluation, we must be able to rebuild the *same* random
   values every time a tensor view is accessed; so `rand` needs a seed
@@ -938,8 +1209,8 @@ for formal semantics such that:
 If we were attempting to shard `python+numpy`, or `python+pytorch`, or any number of other
 existing problem spaces, we'd be forced to find an embedding which permitted hosting
 the entire semantic surface of those environments. But since we've decided to drop that requirement,
-we can *break* the semantics; since $Expr$
-is only a sketch towards a language, we can explore restrictions to $Expr$ which simplify
+we can *break* the semantics; since $Expr$ is only a sketch towards a language, we can explore
+restrictions to $Expr$ which simplify
 embedding.
 
 Consider one functional dependency interpretation of our toy example:
@@ -1089,7 +1360,7 @@ ReLU(Z) := Z \circ [Z > 0]
 
 > 📝 Note: While many activation functions are more complex, ReLU specifically
 > can be rewritten, by the above definition, as a `where(T, T, zeros_like(T))` selection expression.
-> 
+>
 > This is distracting from the current derivation, but in practice
 > could provide significant speedups; depending upon implementation and fusion pragmatics.
 
@@ -1340,14 +1611,18 @@ the structural coupled ranging of the inputs and outputs to the operations $Line
 ### Restricting to Shardable Operators
 
 We cannot assume that any arbitrary operation from a collection of named tensors (the parameters)
-to a collection of named tensors (the results) will have cleanly explicable structural coupled ranging
+to a collection of named tensors (the results) will have cleanly explicable structural coupled
+ranging
 (the relationship between the data in the input cells and the data in the output cells);
-but we can observe that the tractability and explicability of the structural coupled ranging of operators
+but we can observe that the tractability and explicability of the structural coupled ranging of
+operators
 bears directly upon our ability to design mechanical sharding and graph-rewrite algorithms over
 expression graphs.
 
-* If we take as a design requirement the ability to make intelligent sharding choices about operators,
-  and to be able to chain the results of those choices through subsequent layers of the graph, then we
+* If we take as a design requirement the ability to make intelligent sharding choices about
+  operators,
+  and to be able to chain the results of those choices through subsequent layers of the graph, then
+  we
   can reframe the semantics problem of our toy language as searching for a family of operators with
   this property.
 
@@ -1387,7 +1662,8 @@ digraph D {
 }
 ```
 
-Let $Operator$ be a block-operation, taking *tensor*-valued inputs, and producing *tensor*-valued outputs.
+Let $Operator$ be a block-operation, taking *tensor*-valued inputs, and producing *tensor*-valued
+outputs.
 
 As discussed previously, we're attempting to find a family of $Operators$ such that,
 for any given $Operator$, we'll have additional information:
@@ -1607,7 +1883,8 @@ digraph G {
 ```
 
 We're interested in families of $Operator$ such that we can shard operations mechanically, and
-re-assemble the results mechanically, and produce the same value as though the operation had been done in one pass.
+re-assemble the results mechanically, and produce the same value as though the operation had been
+done in one pass.
 
 ```graphviz
 digraph G {
@@ -1968,16 +2245,19 @@ $Operator$s) is solvable by construction (but limited to findable constructions)
 ### Index Projection Functions
 
 One design approach for solving the $P_T(i)$ projection design problem is the use of
-discrete coordinate space (integer, $\mathbb{Z}$) affine transforms (linear projections) from the index space
+discrete coordinate space (integer, $\mathbb{Z}$) affine transforms (linear projections) from the
+index space
 to the tensor spaces.
 
 Discrete affine projection functions are a common approach that's also been incorporated into
-the [MLIR](https://mlir.llvm.org/) project's [Polyhedral Types](https://mlir.llvm.org/docs/Dialects/Affine/).
+the [MLIR](https://mlir.llvm.org/)
+project's [Polyhedral Types](https://mlir.llvm.org/docs/Dialects/Affine/).
 
 What components make up an affine index projection function?:
 
 * The projections are Z-Space / integer valued;
-* an affine expression mapping points in $index$ space to starts in the coordinate space of input/output tensors;
+* an affine expression mapping points in $index$ space to starts in the coordinate space of
+  input/output tensors;
 * a fixed $shape$ defining the shape of region selected relative to the mapped point.
 
 The simplest representation of this is a simple affine transform + a shape:
@@ -2347,12 +2627,15 @@ digraph G {
 
 It's clear that $P_W(i)$ and $P_b(i)$ can ignore $batch$ dimensional sharding; and it seems
 simple linear projections are sufficient to describe the $start$ points of $P_X(i)$ and $P_Y(i)$
-in terms of the indexed $batch$ dimension, and the shapes in terms of the total $in$ and $out$ shapes.
+in terms of the indexed $batch$ dimension, and the shapes in terms of the total $in$ and $out$
+shapes.
 
 $$\begin{eqnarray\*}
-P_X(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{batch}, 0], \\\\ shape &:& [1, X_{in}] \end{split} \right\\} \\\\
+P_X(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{batch}, 0], \\\\ shape &:& [1, X_{in}]
+\end{split} \right\\} \\\\
 \\\\
-P_Y(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{batch}, 0], \\\\ shape &:& [1, Y_{out}] \end{split} \right\\}
+P_Y(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{batch}, 0], \\\\ shape &:& [1, Y_{out}]
+\end{split} \right\\}
 \end{eqnarray\*}$$
 
 ```graphviz
@@ -3034,21 +3317,25 @@ digraph G {
 }
 ```
 
-By extending the $index$ space to index the $out$ dimension, we can express the index functions $P_W(i)$, $P_b(i)$,
+By extending the $index$ space to index the $out$ dimension, we can express the index functions
+$P_W(i)$, $P_b(i)$,
 and $P_Y(i)$ $start$ coordinates in terms of the indexed $out$ coordinate, and the shapes in
 terms of the $W_{out}$ out dimension size.
 
 $$\begin{eqnarray\*}
-P_W(i) &=& ZRange \left\\{ \begin{split} start&:& [0, i_{out}], \\\\ shape &:& [W_{out}, 1] \end{split} \right\\} \\\\
+P_W(i) &=& ZRange \left\\{ \begin{split} start&:& [0, i_{out}], \\\\ shape &:& [W_{out}, 1]
+\end{split} \right\\} \\\\
 \\\\
-P_b(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{out}], \\\\ shape &:& [1] \end{split} \right\\} \\\\
+P_b(i) &=& ZRange \left\\{ \begin{split} start&:& [i_{out}], \\\\ shape &:& [1] \end{split}
+\right\\} \\\\
 \\\\
-P_Y(i) &=& ZRange \left\\{ \begin{split} start&:& [0, i_{out}], \\\\ shape &:& [W_{out}, 1] \end{split} \right\\}
+P_Y(i) &=& ZRange \left\\{ \begin{split} start&:& [0, i_{out}], \\\\ shape &:& [W_{out}, 1]
+\end{split} \right\\}
 \end{eqnarray\*}$$
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -3145,9 +3432,9 @@ digraph G {
         >,
     ];
     
-    w -> op;
-    b -> op;
-    op -> y;
+    op -> w;
+    op -> b;
+    y -> op;
 
     idx -> w:a [
         label=<P<sub>W</sub>(i)>,
@@ -3179,7 +3466,7 @@ correspond to coherent tensor ranges in the mapped coordinate space:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -3289,10 +3576,10 @@ digraph G {
         fillcolor="#E5E8E8",
         margin=0.25
     ];
-
-    w -> op;
-    b -> op;
-    op -> y;
+    
+    op -> w;
+    op -> b;
+    y -> op;
 
     idx -> w:a [
         label=<P<sub>W</sub>({out: 0})>,
@@ -3342,14 +3629,16 @@ digraph G {
 
 ### Sharding Linear, and Matmul, over the in dimension
 
-Previously we developed affine projection sharding over the $batch$ and $out$ dimensions of a tensor-valued $Linear$
+Previously we developed affine projection sharding over the $batch$ and $out$ dimensions of a
+tensor-valued $Linear$
 operation, assuming dimensions: $X: [batch, in]$, $W: [in, out]$, $b: [out]$, $Y: [batch, out]$:
 
 $$\begin{eqnarray\*}
 Linear(X_{[batch,in]}, W_{[in,out]}, b_{[out]})_{[batch,out]} := X \times W + b
 \end{eqnarray\*}$$
 
-To examine sharding over the $in$ dimension, we'll need to focus on the nature of the matrix multiplication
+To examine sharding over the $in$ dimension, we'll need to focus on the nature of the matrix
+multiplication
 operation, and discuss $Matmul$ and $Sum$ operations.
 
 $$\begin{eqnarray\*}
@@ -3357,7 +3646,8 @@ Matmul(X_{[batch,in]}, W_{[in,out]})_{[batch,out]} &:=& X \times W \\\\
 Sum(A\_{[...]}, B\_{[...]})\_{[...]} &:=& A + B
 \end{eqnarray\*}$$
 
-What's important here is that, while $Matmul$ is linearly shardable in its $batch$ and $out$ dimensions,
+What's important here is that, while $Matmul$ is linearly shardable in its $batch$ and $out$
+dimensions,
 it contains an implicit reduce sum reduction operation in its $input$ dimension.
 
 $$\begin{eqnarray\*}
@@ -3368,9 +3658,12 @@ Matmul(X_{[batch,in]}, W_{[in,out]}) := \left(
 \end{split} \right)
 \end{eqnarray\*}$$
 
-> 📝 Note: careful readers may note that there exists a large body of work dedicated to the question of
-> how to implement $Matmul$ more efficiently. The point of this exercise is to use $Linear$ and $Matmul$
-> as a lens to examine data coupled ranging in sharding block operations; and a naive treatment of $Matmul$
+> 📝 Note: careful readers may note that there exists a large body of work dedicated to the question
+> of
+> how to implement $Matmul$ more efficiently. The point of this exercise is to use $Linear$ and
+> $Matmul$
+> as a lens to examine data coupled ranging in sharding block operations; and a naive treatment of
+> $Matmul$
 > is useful to these needs.
 > \
 > In a fully developed tensor expression sharding environment, it could be useful to hoist some
@@ -3388,7 +3681,7 @@ Applying this re-write would restructure our expression graph from this:
 
 ```graphviz
 digraph D {
-    rankdir=LR;
+    rankdir=RL;
     X, W, b, Z [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     Linear [
@@ -3398,10 +3691,10 @@ digraph D {
         fillcolor="#E5E8E8",
     ];
     
-    X -> Linear;
-    W -> Linear;
-    b -> Linear;
-    Linear -> Z;
+    Linear -> X;
+    Linear -> W;
+    Linear -> b;
+    Z -> Linear;
 }
 ```
 
@@ -3409,11 +3702,11 @@ To this:
 
 ```graphviz
 digraph D {
-    rankdir=LR;
+    rankdir=RL;
     X, W, b, Z [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
-    X -> Matmul;
-    W -> Matmul;
+    Matmul -> X;
+    Matmul -> W;
     
     Matmul, Sum [
         shape=rarrow,
@@ -3422,10 +3715,9 @@ digraph D {
         fillcolor="#E5E8E8",
     ];
     
-    Matmul -> Sum;
-    b -> Sum;
-    
-    Sum -> Z;
+    Sum -> Matmul;
+    Sum -> b;
+    Z -> Sum;
 }
 ```
 
@@ -3433,7 +3725,8 @@ A block operation sharding solution for $Matmul$ on $in$ should translate to a s
 for $Linear$ on $in$.
 
 We can decompose $Matmul$ by distinguishing between the matrix multiplication operator ($\times$)
-and the cell-wise product operation ($\cdot$); and generate an intermediate product with shape $[batch,in,out]$.
+and the cell-wise product operation ($\cdot$); and generate an intermediate product with
+shape $[batch,in,out]$.
 
 To do this, we need to extend and broadcast $X$ and $W$ to the combined shape $[batch,in,out]$,
 to produce an intermediate result $V$:
@@ -3442,7 +3735,8 @@ $$\begin{eqnarray\*}
 V := (X\_{[batch,in,1]} \cdot W\_{[1,in,out]})\_{[batch,in,out]}
 \end{eqnarray\*}$$
 
-And we need to introduce a new operator $SumDim(T, dim)$ which sums along and removes one dim of $T$.
+And we need to introduce a new operator $SumDim(T, dim)$ which sums along and removes one dim of
+$T$.
 
 We can now define $Matmul$ in terms of this intermediate result, and $SumDim$
 
@@ -3458,11 +3752,12 @@ This decomposition yields the following expression graph:
 
 ```graphviz
 digraph D {
-    rankdir=LR;
+    rankdir=RL;
     X, W, V, Z [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
-    X -> Prod;
-    W -> Prod;
+    Prod -> X;
+    Prod -> W;
+    
     Prod [
         shape=rarrow,
         margin=0.25,
@@ -3470,9 +3765,9 @@ digraph D {
         fillcolor="#E5E8E8",
     ];
     
-    Prod -> V;
+    V -> Prod;
+    SumDim -> V;
     
-    V -> SumDim;
     SumDim [
       shape=rpromoter,
       margin=0.25,
@@ -3480,7 +3775,7 @@ digraph D {
       fillcolor="#E5E8E8",
     ];
     
-    SumDim -> Z;
+    Z -> SumDim;
 }
 ```
 
@@ -3550,7 +3845,7 @@ with a simple index space that covers the full shape of the output.
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -3645,10 +3940,10 @@ digraph G {
             </td></tr></table>
         >,
     ];
-
-    x -> op;
-    w -> op;
-    op -> z;
+    
+    op -> x;
+    op -> w;
+    z -> op;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> w [label=<P<sub>W</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -3670,7 +3965,7 @@ over two dimensions:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -3738,9 +4033,9 @@ digraph G {
             </table>
         >,
     ];
-
-    x -> op;
-    op -> y;
+    
+    op -> x;
+    y -> op;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -3780,7 +4075,7 @@ stage to complete the reduction:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -3857,9 +4152,9 @@ digraph G {
             </table>
         >,
     ];
-
-    x -> op;
-    op -> v;
+    
+    op -> x;
+    v -> op;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> v [label=<P<sub>V</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -3913,8 +4208,8 @@ digraph G {
         >,
     ];
     
-    v -> op2;
-    op2 -> y;
+    op2 -> v;
+    y -> op2;
     
     idx2 -> v [label=<P<sub>V</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx2 -> y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -3929,7 +4224,7 @@ representation of the index space, as $⟪reduce⟫$ is no longer a simple count
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -4003,8 +4298,8 @@ digraph G {
         >,
     ];
 
-    x -> op;
-    op -> y;
+    op -> x;
+    y -> op;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -4033,7 +4328,7 @@ We can now construct $Matmul$ from the combination of a block operation and a re
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -4128,10 +4423,10 @@ digraph G {
             </td></tr></table>
         >,
     ];
-
-    x -> Prod;
-    w -> Prod;
-    Prod -> z;
+    
+    Prod -> x;
+    Prod -> w;
+    z -> Prod;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> w [label=<P<sub>W</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -4196,9 +4491,9 @@ digraph G {
             </table>
         >,
     ];
-
-    z -> SumDim;
-    SumDim -> y;
+    
+    SumDim -> z;
+    y -> SumDim;
 
     idx2 -> z [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx2 -> y [label=<P<sub>Y</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -4220,7 +4515,7 @@ over the $batch$, $in$, and $out$ dimensions:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -4336,11 +4631,11 @@ digraph G {
             </table>
         >,
     ];
-
-    x -> Linear;
-    w -> Linear;
-    b -> Linear;
-    Linear -> y;
+    
+    Linear -> x;
+    Linear -> w;
+    Linear -> b;
+    y -> Linear;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> b [label=<P<sub>B</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -4356,7 +4651,7 @@ sub-graph of $Prod$, $SumDim$, and $Sum$ operations:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -4451,10 +4746,10 @@ digraph G {
             </td></tr></table>
         >,
     ];
-
-    x -> Prod;
-    w -> Prod;
-    Prod -> z;
+    
+    Prod -> x;
+    Prod -> w;
+    z -> Prod;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> w [label=<P<sub>W</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -4519,9 +4814,9 @@ digraph G {
             </table>
         >,
     ];
-
-    z -> SumDim;
-    SumDim -> v;
+    
+    SumDim -> z;
+    v -> SumDim;
 
     idx2 -> z [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx2 -> v [label=<P<sub>V</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -4598,9 +4893,9 @@ digraph G {
         >,
     ];
     
-    v -> Sum;
-    b -> Sum;
-    Sum -> y;
+    Sum -> v;
+    Sum -> b;
+    y -> Sum;
     
     idx3 -> v [label=<P<sub>V</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx3 -> b [label=<P<sub>B</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -4616,7 +4911,7 @@ behaves the way our previous description of $Linear$ behaved:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
 
     idx [
         shape="plain",
@@ -4727,11 +5022,11 @@ digraph G {
             </table>
         >,
     ];
-
-    x -> Linear;
-    w -> Linear;
-    b -> Linear;
-    Linear -> y;
+    
+    Linear -> x;
+    Linear -> w;
+    Linear -> b;
+    y -> Linear;
 
     idx -> x [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
     idx -> b [label=<P<sub>B</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -4746,7 +5041,6 @@ Being able to express this re-write option, when the $in$ dimension is not shard
 will require us to develop high-order meta-operator representation above the index
 projection function formalism.
 
-
 ### Sharding Convolution Operators
 
 Let's now consider a new operation, the application of
@@ -4757,11 +5051,13 @@ Y = Conv2D(X, K)
 ```
 
 Kernel convolution operations tile (or tessellate) a moving input window over the entire space
-of an input tensor. Convolution operations (frequently, see sparse convolutions below) share input data with neighbors;
+of an input tensor. Convolution operations (frequently, see sparse convolutions below) share input
+data with neighbors;
 and effective modeling of their shard characteristics can dramatically reduce data flow
 in large computations, by sharding data neighborhoods to maximize local data sharing.
 
 Expanding the sharding theory of convolution operations will require us to:
+
 * define tensor stride view operations, to model sparse convolutions;
 * develop stacked affine projections, to work in derived view environments;
 * define tensor fusion operations, to reassemble sparse shards.
@@ -4779,7 +5075,7 @@ If we apply no padding, and shift each neighbor by 1 step:
 
 ```graphviz
 digraph G {
-  rankdir=LR;
+  rankdir=RL;
 
   idx [
     shape="plain",
@@ -4911,10 +5207,10 @@ digraph G {
           </table>
       >,
   ];
-
-  X -> Conv;
-  F -> Conv;
-  Conv -> Y;
+  
+  Conv -> X;
+  Conv -> F;
+  Y -> Conv;
   
   idx -> X [label=<P<sub>X</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
   idx -> F [label=<P<sub>F</sub>(i)>, constraint=false, style=dotted, arrowhead=empty];
@@ -4936,7 +5232,6 @@ In this situation:
 * $P_X(i).projection$ is $Identity$,
 * $P_X(i).shape$ is $[3, 3]$
 
-
 Convolution operations are frequently applied to not one convolution kernel,
 but to a stack of them. It's common for a $Conv2D$ call to have a kernel (or filter)
 with a 2D $[3,3]$ or $[5,5]$ shape, but with $64$, $128$ stacked filters;
@@ -4949,6 +5244,7 @@ the full selection of the convolution filters. Padding will be discussed later,
 which brings with it many questions of how that padding should be generated.
 
 Consider:
+
 * a 100 batch, $[10,10]$ shape, 1-channel input $X$;
 * a 128 layer, $[3,3]$ shape, 1-channel input convolution filter $F$;
 * yielding a 100 batch, $[8,8]$ shape, 128-channel output $Y$.
@@ -4971,7 +5267,7 @@ the size (and complexity) of the kernel filter itself; a good model of it is nec
 
 ```graphviz
 digraph G {
-rankdir=LR;
+rankdir=RL;
 
 idx [
 shape="plain",
@@ -5147,9 +5443,9 @@ label=<
       >,
 ];
 
-X -> Conv;
-F -> Conv;
-Conv -> Y;
+Conv -> X;
+Conv -> F;
+Y -> Conv;
 
 { rank=same; idx; Conv; strides; }
 }
@@ -5163,7 +5459,7 @@ $Y$ from strided sliced result shards:
 
 ```graphviz
 digraph G {
-  rankdir=LR;
+  rankdir=RL;
 
   subgraph cluster_0 {
   idx0 [
@@ -5241,8 +5537,8 @@ digraph G {
       label=<strides: [1,<b>1</b>,…]>,
       shape=rectangle,
   ];
-
-  strides0 -> Conv0;
+  
+  Conv0 -> strides0;
 
   { rank=same; idx0; Conv0; strides0; }
   }
@@ -5321,8 +5617,8 @@ digraph G {
       label=<strides: [1,<b>1</b>,…]>,
       shape=rectangle,
   ];
-
-  strides1 -> Conv1;
+  
+  Conv1 -> strides1;
 
   { rank=same; idx1; Conv1; strides1; }
   }
@@ -5392,9 +5688,9 @@ digraph G {
     fillcolor="#a0d0d0",
     color=black,
   ];
-
-  X -> S0 -> X0;
-  X -> S1 -> X1;
+  
+  X0 -> S0 -> X;
+  X0 -> S1 -> X;
 
   F [
       shape="plain",
@@ -5464,15 +5760,15 @@ digraph G {
         </table>
       >,
   ];
-
-  X0 -> Conv0;
-  F -> Conv0;
-  Conv0 -> SI;
-
-  X1 -> Conv1;
-  F -> Conv1;
-  Conv1 -> SI;
   
+  Conv0 -> X0;
+  Conv0 -> F;
+  SI -> Conv0;
+  
+  Conv1 -> X1;
+  Conv1 -> F;
+  SI -> Conv1;
+
   SI [
     label=<
        <table border="0" cellspacing="0" cellpadding="0">
@@ -5487,11 +5783,12 @@ digraph G {
     color=black,
   ];
   
-  SI -> Y;
+  Y -> SI;
 }
 ```
 
 There are two broad approaches to realize this goal, which will be explored in later sections:
+
 * extending the projection function language with the concept of striding;
 * developing strided tensor slice and fusion operations.
 
@@ -5535,14 +5832,15 @@ would be relaxed.
 ### Graph Rewrite Rules
 
 [Graph rewriting](https://en.wikipedia.org/wiki/Graph_rewriting) is a common implementation feature
-of graph evaluation languages; "graph rewrite rules" are rules to describe legal rewrites on a graph,
+of graph evaluation languages; "graph rewrite rules" are rules to describe legal rewrites on a
+graph,
 and the field constitutes a large field of study on its own.
 
 As an example, suppose we have a graph containing the following subgraph:
 
 ```graphviz
 digraph G {
-  rankdir=LR;
+  rankdir=RL;
   W, X, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
   A [
       shape=rarrow,
@@ -5552,27 +5850,31 @@ digraph G {
   ];
   
   G1, G2, G3 [label="...", shape=plain];
-  G1 -> W;
-  G2 -> X;
-  Y -> G3;
   
-  W -> A;
-  X -> A;
-  A -> Y;
+  W -> G1;
+  X -> G2;
+  G3 -> Y;
+  
+  A -> W;
+  A -> X;
+  Y -> A;
 }
 ```
 
 And we have a rule saying something like:
 
 * "Under certain conditions, `A` can be rewritten in terms of `J` and `K`";
-  with appropriate patterns and machinery to check those conditions, and perform the rewrite mechanically.
+  with appropriate patterns and machinery to check those conditions, and perform the rewrite
+  mechanically.
 
-We could imagine determining that the rewrite applied in this situation, and then applying it yielding
-the following graph, where `A` has been replaced with `J` and `K`, and an intermediate value `V` has been introduced:
+We could imagine determining that the rewrite applied in this situation, and then applying it
+yielding
+the following graph, where `A` has been replaced with `J` and `K`, and an intermediate value `V` has
+been introduced:
 
 ```graphviz
 digraph G {
-  rankdir=LR;
+  rankdir=RL;
   W, X, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
   
   subgraph cluster_0 {
@@ -5584,24 +5886,25 @@ digraph G {
       style=filled,
       fillcolor="#E5E8E8",
     ];
-    J -> V;
-    V -> K;
+    V -> J;
+    K -> V;
   }
   
   G1, G2, G3 [label="...", shape=plain];
-  G1 -> W;
-  G2 -> X;
-  Y -> G3;
+  W -> G1;
+  X -> G2;
+  G3 -> Y;
   
-  W -> J;
-  X -> J;
-  K -> Y;
+  J -> W;
+  J -> X;
+  Y -> K;
 }
 ```
 
 It can be valuable to distinguish between semantic and optimization rewrites:
 
-* **semantic rewrites** are rewrites required by the language; frequently when some high level feature
+* **semantic rewrites** are rewrites required by the language; frequently when some high level
+  feature
   is implemented in terms of lower level features, and *must* be replaced for evaluation.
 * **optimization rewrites** are rewrites which aim to reduce the execution cost;
   they are optional, but desired.
@@ -5611,7 +5914,7 @@ rules around sharding block operations; on rewriting block operation graphs, suc
 
 ```graphviz
 digraph G {
-  rankdir=LR;
+  rankdir=RL;
   W, X, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
   A [
     shape=rarrow,
@@ -5621,13 +5924,13 @@ digraph G {
   ];
   
   G1, G2, G3 [label="...", shape=plain];
-  G1 -> W;
-  G2 -> X;
-  Y -> G3;
+  W -> G1;
+  X -> G2;
+  G3 -> Y;
   
-  W -> A;
-  X -> A;
-  A -> Y;
+  A -> W;
+  A -> X;
+  Y -> A;
 }
 ```
 
@@ -5635,7 +5938,7 @@ Into graphs where the block operations have been sharded in some way, such as th
 
 ```graphviz
 digraph G {
-  rankdir=LR;
+  rankdir=RL;
   W, X, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
   
   subgraph cluster_0 {
@@ -5651,16 +5954,17 @@ digraph G {
   }
   
   G1, G2, G3 [label="...", shape=plain];
-  G1 -> W;
-  G2 -> X;
-  Y -> G3;
+  W -> G1;
+  X -> G2;
+  G3 -> Y;
   
-  W -> A1;
-  X -> A1;
-  A1 -> Y;
-  W -> A2;
-  X -> A2;
-  A2 -> Y;
+  A1 -> W;
+  A1 -> X;
+  Y -> A1;
+  
+  A2 -> W;
+  A2 -> X;
+  Y -> A2;
 }
 ```
 
@@ -5669,7 +5973,7 @@ that are valuable to us, starting from a high-level $Linear$ block:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
 
     Linear [
@@ -5680,14 +5984,14 @@ digraph G {
         margin=0.25
     ];
     
-    X -> Linear;
-    W -> Linear;
-    b -> Linear;
-    Linear -> Y;
+    Linear -> X;
+    Linear -> W;
+    Linear -> b;
+    Y -> Linear;
     
     G1, G2 [label="...", shape=plain];
-    G1 -> X;
-    Y -> G2;
+    X -> G1;
+    G2 -> Y;
 }
 ```
 
@@ -5696,7 +6000,7 @@ of $Linear$:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
@@ -5709,24 +6013,25 @@ digraph G {
           margin=0.25
       ];
     }
-
-    X -> LinearBlock;
-    W -> LinearBlock;
-    b -> LinearBlock;
-    LinearBlock -> Y;
+    
+    LinearBlock -> X;
+    LinearBlock -> W;
+    LinearBlock -> b;
+    Y -> LinearBlock;
     
     G1, G2 [label="...", shape=plain];
-    G1 -> X;
-    Y -> G2;
+    X -> G1;
+    G2 -> Y;
 }
 ```
 
-Or we semantically rewrite to a $Prod$, $SumDim$, $Sum$ subgraph if we choose to shard on the $in$ dimension
+Or we semantically rewrite to a $Prod$, $SumDim$, $Sum$ subgraph if we choose to shard on the $in$
+dimension
 of $Linear$:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
     {rank=same; X; b; }
     
@@ -5741,8 +6046,8 @@ digraph G {
           fillcolor="#E5E8E8",
           margin=0.25
       ];
-
-      Prod -> Z;
+      
+      Z -> Prod;
 
       SumDim [
           label=SumDim,
@@ -5751,9 +6056,9 @@ digraph G {
           fillcolor="#E5E8E8",
           margin=0.25
       ];
-
-      Z -> SumDim;
-      SumDim -> V;
+      
+      SumDim -> Z;
+      V -> SumDim;
 
       Sum [
           label=Sum,
@@ -5763,17 +6068,17 @@ digraph G {
           margin=0.25
       ];
       
-      V -> Sum;
+      Sum -> V;
     }
     
-    X -> Prod;
-    W -> Prod;
-    b -> Sum;
-    Sum -> Y;
+    Prod -> X;
+    Prod -> W;
+    Sum -> b;
+    Y -> Sum;
     
     G1, G2 [label="...", shape=plain];
-    G1 -> X;
-    Y -> G2;
+    X -> G1;
+    G2 -> Y;
 }
 ```
 
@@ -5817,7 +6122,7 @@ For example, consider this subgraph featuring $Op$:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     A, B, C [shape=box3d, fillcolor="#d0d0ff", style=filled];
 
     Op [
@@ -5828,14 +6133,14 @@ digraph G {
         margin=0.25
     ];
     
-    A -> Op;
-    B -> Op;
-    Op -> C;
+    Op -> A;
+    Op -> B;
+    C -> Op;
     
     G1, G2, G3 [label="...", shape=plain];
-    G1 -> A;
-    G2 -> B;
-    C -> G3;
+    A -> G1;
+    B -> G2;
+    G3 -> C;
 }
 ```
 
@@ -5848,7 +6153,7 @@ could be applied:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     A, B, C [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
@@ -5870,18 +6175,18 @@ digraph G {
           margin=0.25
       ];
       
-      J -> V;
-      V -> K;
+      V -> J;
+      K -> V;
     }
     
-    A -> J;
-    B -> J;
-    K -> C;
+    J -> A;
+    J -> B;
+    C -> K;
     
     G1, G2, G3 [label="...", shape=plain];
-    G1 -> A;
-    G2 -> B;
-    C -> G3;
+    A -> G1;
+    B -> G2;
+    G3 -> C;
 }
 ```
 
@@ -5891,7 +6196,7 @@ for example this entirely different rewrite of $Op$.
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     A, B, C [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
@@ -5905,7 +6210,7 @@ digraph G {
           margin=0.25
       ];
       
-      M -> V;
+      V -> M;
       
       N [
           label=N,
@@ -5915,17 +6220,17 @@ digraph G {
           margin=0.25
       ];
       
-      V -> N;
+      N -> V;
     }
     
-    A -> M;
-    B -> N;
-    N -> C;
+    M -> A;
+    N -> B;
+    C -> N;
     
     G1, G2, G3 [label="...", shape=plain];
-    G1 -> A;
-    G2 -> B;
-    C -> G3;
+    A -> G1;
+    B -> G2;
+    G3 -> C;
 }
 ```
 
@@ -5979,7 +6284,7 @@ Consider the subgraph below:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     A, B, C, D [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     M [
@@ -5996,16 +6301,16 @@ digraph G {
         margin=0.25
     ];
     
-    A -> M;
-    B -> M;
-    M -> C;
-    C -> N;
-    N -> D;
+    M -> A;
+    M -> B;
+    C -> M;
+    N -> C;
+    D -> N;
     
     G1, G2, G3 [label="...", shape=plain];
-    G1 -> A;
-    G2 -> B;
-    D -> G3;
+    A -> G1;
+    B -> G2;
+    G3 -> D;
 }
 ```
 
@@ -6014,7 +6319,7 @@ and rewrite it to a new condensed operator, $J$:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     A, B, D [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
@@ -6027,14 +6332,14 @@ digraph G {
       ];
     }
     
-    A -> J;
-    B -> J;
-    J -> D;
+    J -> A;
+    J -> B;
+    D -> J;
     
     G1, G2, G3 [label="...", shape=plain];
-    G1 -> A;
-    G2 -> B;
-    D -> G3;
+    A -> G1;
+    B -> G2;
+    G3 -> D;
 }
 ```
 
@@ -6060,7 +6365,8 @@ search for optimizations; and a few final deterministic passes to perform fusion
 As discussed later in the sections on parallel stochastic search; we can see that
 each re-write step will produce an instance with a different estimated cost according
 to our cost models, and we can merge rewrites with stochastic optimization to allow
-us to use the ambiguity of optional rewrites to permit aggressive exploration of the optimization space.
+us to use the ambiguity of optional rewrites to permit aggressive exploration of the optimization
+space.
 
 #### Returning to Linear
 
@@ -6069,7 +6375,7 @@ using either local expansion, or global rewrite search.
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
 
     Linear [
@@ -6080,14 +6386,14 @@ digraph G {
         margin=0.25
     ];
     
-    X -> Linear;
-    W -> Linear;
-    b -> Linear;
-    Linear -> Y;
+    Linear -> X;
+    Linear -> W;
+    Linear -> b;
+    Y -> Linear;
     
     G1, G2 [label="...", shape=plain];
-    G1 -> X;
-    Y -> G2;
+    X -> G1;
+    G2 -> Y;
 }
 ```
 
@@ -6099,7 +6405,7 @@ of $Linear$:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
@@ -6113,14 +6419,14 @@ digraph G {
       ];
     }
 
-    X -> LinearBlock;
-    W -> LinearBlock;
-    b -> LinearBlock;
-    LinearBlock -> Y;
+    LinearBlock -> X;
+    LinearBlock -> W;
+    LinearBlock -> b;
+    Y -> LinearBlock;
     
     G1, G2 [label="...", shape=plain];
-    G1 -> X;
-    Y -> G2;
+    X -> G1;
+    G2 -> Y;
 }
 ```
 
@@ -6129,7 +6435,7 @@ of $Linear$:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
     {rank=same; X; b; }
     
@@ -6145,7 +6451,7 @@ digraph G {
           margin=0.25
       ];
 
-      Prod -> Z;
+      Z -> Prod;
 
       SumDim [
           label=SumDim,
@@ -6155,8 +6461,8 @@ digraph G {
           margin=0.25
       ];
 
-      Z -> SumDim;
-      SumDim -> V;
+      SumDim -> Z;
+      V -> SumDim;
 
       Sum [
           label=Sum,
@@ -6166,17 +6472,17 @@ digraph G {
           margin=0.25
       ];
       
-      V -> Sum;
+      Sum -> V;
     }
     
-    X -> Prod;
-    W -> Prod;
-    b -> Sum;
-    Sum -> Y;
+    Prod -> X;
+    Prod -> W;
+    Sum -> b;
+    Y -> Sum;
     
     G1, G2 [label="...", shape=plain];
-    G1 -> X;
-    Y -> G2;
+    X -> G1;
+    G2 -> Y;
 }
 ```
 
@@ -6187,7 +6493,7 @@ representation:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     X, W, b, Y, Z, V [shape=box3d, fillcolor="#d0d0ff", style=filled];
     {rank=same; X; b; }
 
@@ -6199,7 +6505,7 @@ digraph G {
           margin=0.25
       ];
 
-      Prod -> Z;
+      Z -> Prod;
 
       SumDim [
           label=SumDim,
@@ -6209,8 +6515,8 @@ digraph G {
           margin=0.25
       ];
 
-      Z -> SumDim;
-      SumDim -> V;
+      SumDim -> Z;
+      V -> SumDim;
 
       Sum [
           label=Sum,
@@ -6220,16 +6526,16 @@ digraph G {
           margin=0.25
       ];
       
-      V -> Sum;
+      Sum -> V;
     
-    X -> Prod;
-    W -> Prod;
-    b -> Sum;
-    Sum -> Y;
+    Prod -> X;
+    Prod -> W;
+    Sum -> b;
+    Y -> Sum;
     
     G1, G2 [label="...", shape=plain];
-    G1 -> X;
-    Y -> G2;
+    X -> G1;
+    G2 -> Y;
 }
 ```
 
@@ -6238,7 +6544,7 @@ rewritten to $LinearBlock$ when the $in$ dimension wasn't being sharded upon:
 
 ```graphviz
 digraph G {
-    rankdir=LR;
+    rankdir=RL;
     X, W, b, Y [shape=box3d, fillcolor="#d0d0ff", style=filled];
     
     subgraph cluster_0 {
@@ -6252,14 +6558,14 @@ digraph G {
       ];
     }
 
-    X -> LinearBlock;
-    W -> LinearBlock;
-    b -> LinearBlock;
-    LinearBlock -> Y;
+    LinearBlock -> X;
+    LinearBlock -> W;
+    LinearBlock -> b;
+    Y -> LinearBlock;
     
     G1, G2 [label="...", shape=plain];
-    G1 -> X;
-    Y -> G2;
+    X -> G1;
+    G2 -> Y;
 }
 ```
 
@@ -6313,7 +6619,8 @@ but a collection of values we might be simultaneously interested in improving. F
 
 ### Stochastic Pareto Frontier Optimization
 
-Enter the field of [multi-objective optimization](https://en.wikipedia.org/wiki/Multi-objective_optimization);
+Enter the field
+of [multi-objective optimization](https://en.wikipedia.org/wiki/Multi-objective_optimization);
 which is the research field into optimization when we have multiple dimensions to care about.
 This section is a brief overview of multi-objective optimization, as it applies to tapestry
 plans.
@@ -6328,7 +6635,8 @@ made up of all instances which are better than any other instance on at least on
 The **Pareto frontier** represents the instances (found so far) making the best trade-offs
 between resources we care about from our cost model.
 
-When searching for improvements, we can select one (or more, in the case of graph or genetic cross-over)
+When searching for improvements, we can select one (or more, in the case of graph or genetic
+cross-over)
 instance(s) of the instances $G_i$ from the **pareto frontier** (or, in the case of some models,
 sampled proportionally relative to their distance from the frontier); apply one or more
 of the mutation rules, producing a new instance $G'$, and run the cost model to establish
@@ -6353,7 +6661,8 @@ children, but might enable further mutations which do, and we don't want to clos
 to exploring those options.
 
 Further, it may be the case that there are regions of the optimization space which constitute
-external constraints; but we'd still like to include instances outside that region to permit appropriate
+external constraints; but we'd still like to include instances outside that region to permit
+appropriate
 exploration.
 
 For example, our initial graph $G$ likely has peak node memory and compute utilization greater
@@ -6388,7 +6697,8 @@ contributed to improvements in the pareto frontier.
 This can be done offline, by running benchmarks and hard-coding the resulting values;
 or it can be done dynamically while running a given optimization.
 
-In practice, a combination approach is powerful: offline benchmarking to establish a prior distribution,
+In practice, a combination approach is powerful: offline benchmarking to establish a prior
+distribution,
 combined with dynamic statistics based in the observed optimization histories
 attached to a given problem.
 
@@ -6436,7 +6746,6 @@ if doing so reliably reduces the long term utilization.
 However, when targeting jobs which should take 5 machines 20 minutes;
 the target optimization time should probably be a great deal shorter.
 
-
 ## Implementation Mechanics
 
 This section is devoted to working out the datatypes and algorithms to actually
@@ -6454,8 +6763,10 @@ ZSpace := \\{ \mathbb{Z}^n | n \in \mathbb{Z}^+ \\}
 "ZSpace" is a common shorthand, typographically simple name for the infinite
 family of $n$-dimensional discrete Euclidean spaces.
 
-The $n$-dimensional coordinates of discrete-celled tensors (the kind of tensors we work with on computers)
-are *ZSpace* objects, as are bounding regions selecting those coordinates, and morphisms or maps from one region to
+The $n$-dimensional coordinates of discrete-celled tensors (the kind of tensors we work with on
+computers)
+are *ZSpace* objects, as are bounding regions selecting those coordinates, and morphisms or maps
+from one region to
 another.
 
 Though we could, in principle, simply call a coordinate an array of integers;
@@ -6466,12 +6777,15 @@ As I've been working on pieces of Tapestry;
 most of the work has be focused on libraries for manipulating objects in ZSpace without spending
 all of my time debugging math errors.
 
-Most tensor libraries I've been able to examine, for Python, C++, Java, and Rust, focus primarily on abstracting
-the details of using hardware accelerated vectorized floating point operations. They carry big dependency costs,
+Most tensor libraries I've been able to examine, for Python, C++, Java, and Rust, focus primarily on
+abstracting
+the details of using hardware accelerated vectorized floating point operations. They carry big
+dependency costs,
 and have lots of runtime call patterns, driven by this.
 
 So I've been building my own ZSpace libs, which cannot represent anything other than integer values;
-because my focus isn't on the performance of the calculations of the data in the values; but on correctly manipulating
+because my focus isn't on the performance of the calculations of the data in the values; but on
+correctly manipulating
 (with type checking and runtime assertions) index regions describing shards of expressions.
 
 This is, for instance, the ZTensor and tests:
@@ -6479,18 +6793,21 @@ This is, for instance, the ZTensor and tests:
 * [ZTensor.java](https://github.com/crutcher/loom/blob/main/java/src/main/java/loom/zspace/ZTensor.java)
 * [ZTensorTest.java](https://github.com/crutcher/loom/blob/main/java/src/test/java/loom/zspace/ZTensorTest.java)
 
-This is a situation where the existing libraries were just not built for manipulating polyhedral types and ranges
+This is a situation where the existing libraries were just not built for manipulating polyhedral
+types and ranges
 in ZSpace; where we frequently wish to perform transforms which result in coordinates.
 
 There's a tremendous amount of clever little tricks wrapped up in how tensor libs get built; and how
 things like `transpopse`, `permute`, `reverse`, `select`, `squeeze`, `unsqueeze`, and `broadcastTo`
-can be implemented with zero-copy views which read or write back to their parent; and I may do a series on "How to write
+can be implemented with zero-copy views which read or write back to their parent; and I may do a
+series on "How to write
 a Tensor";
 but for now a fair number of those tricks are wrapped up in that code.
 
 #### Side Note: Size, Z^0, and Scalars
 
-The size of a contiguous slice of ZSpace (the number of elements contained in it), and thus of a contiguous slice of a
+The size of a contiguous slice of ZSpace (the number of elements contained in it), and thus of a
+contiguous slice of a
 tensor; is the product of the size of
 the inclusive bounds of that slice; aka, the *shape* of the tensor.
 
@@ -6498,15 +6815,16 @@ the inclusive bounds of that slice; aka, the *shape* of the tensor.
 * In $\mathbb{Z}^2$, simple matrices, the size is $rows * cols$, the product of the dimensions;
 * and so on for $n >= 1$
 
-However, consider the $0$-dimensional space $\mathbb{Z}^0$. The product of an empty collection is defined as $1$;
+However, consider the $0$-dimensional space $\mathbb{Z}^0$. The product of an empty collection is
+defined as $1$;
 as this is the most consistent answer for a "zero" for multiplication; so we have this argument for
 the existence of $0$-dimensional tensors which still have one element in them; purely from
 the math of the product of shapes.
 
 And it turns out, that's how all tensor libraries model scalar values; as $0$-dimensional tensors.
 
-
 ### Representing Graphs
+
 Expression languages differ from process languages in that define values in terms of
 transformations on previous values. The simplest outcome of this is that it's quite
 easy to use a given value more than once; but by adding an observer, we can define
@@ -6744,7 +7062,7 @@ for each of an arbitrary number of inputs.
 Given an index space `I` with dimensions `batch, x, y, k`;
 
 |       | gpu | ram |
-| ----- | --- | --- |
+|-------|-----|-----|
 | batch | 1   | 1   |
 | x     | 4   | 8   |
 | y     | 4   | 8   |
@@ -6830,10 +7148,11 @@ is not necessary to schedule or execute a correct sharding as-is.
 Additionally, there's annotation information we could include or derive, such as:
 
 * the expected size of the input / output tensors
-  * when married with a concrete execution schedule, this permits transmission bandwith/delay modeling.
+    * when married with a concrete execution schedule, this permits transmission bandwith/delay
+      modeling.
 * the expected compute costs of the block
-  * CPU/GPU delay
-  * Block memory usage
+    * CPU/GPU delay
+    * Block memory usage
 
 This information about blocks, describing the cost models, is needed in most places where the
 polyhedral type information is needed.
