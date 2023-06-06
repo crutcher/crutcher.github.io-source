@@ -357,22 +357,7 @@ An effective tapestry environment sufficient to host finite element simulations
 would permit accelerated research into anything built upon finite element simulations;
 which includes a great deal of modern engineering and physical sciences applications.
 
-## Expression Language Definition
-
-> TBD: collect a definition-oriented description of the choices derived in the derivation section
-> here.
-
-* Tensors
-* Expressions
-    * Selectors Expressions
-    * Block Operator Expressions
-    * Source and Sink Operators
-* Expression Signatures
-* Cost Models
-    * Tensor Costs
-    * Marginal Costs
-
-Let *TEL* be the "Tapestry Expression Language"
+## TEG: Tapestry Expression Graph
 
 ```graphviz
 digraph G {
@@ -384,9 +369,30 @@ digraph G {
      style=filled,
   ];
   
-  SourceA1 [label="Source: A1"];
-  SourceA2 [label="Source: A2"];
-  SourceB [label="Source: B"];
+  SourceA1 [
+     label=<
+       <table border="0">
+         <tr><td>Source: A1</td></tr>
+         <tr><td><i>from memory</i></td></tr>
+         </table>
+     >,
+  ];
+  SourceA2 [
+     label=<
+       <table border="0">
+         <tr><td>Source: A2</td></tr>
+         <tr><td><i>from memory</i></td></tr>
+         </table>
+     >,
+  ];
+  SourceB [
+     label=<
+       <table border="0">
+         <tr><td>Source: B</td></tr>
+         <tr><td><i>from memory</i></td></tr>
+         </table>
+     >,
+  ];
   
   A1 -> SourceA1;
   A2 -> SourceA2;
@@ -445,7 +451,7 @@ digraph G {
      >,
   ];
   
-  Sig [
+  SigAdd, SigC [
       label=<Signature>,
       shape=component,
       margin=0.25,
@@ -454,6 +460,12 @@ digraph G {
   ];
   
   Add [
+      label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>add</td></tr>
+         <tr><td>[0, 0] =&gt; [1000, 10]</td></tr>
+         </table>
+      >,
       shape=rarrow,
       margin=0.25,
       style=filled,
@@ -462,8 +474,8 @@ digraph G {
   Add -> B;
   Add -> A;
   
-  Add -> Sig [constraint=false];
-  { rank=same; Sig; Add; }
+  Add -> SigAdd;
+  { rank=same; SigAdd; Add; }
   
   C [
      label=<
@@ -474,55 +486,48 @@ digraph G {
      >,
      shape=box3d, fillcolor="#d0d0ff", style=filled];
   C -> Add;
-  
-  SC1, SC2 [
-    margin=0,
-    shape=parallelogram,
-    style=filled,
-    fillcolor="#a0d0d0",
-    color=black,
-  ];
-  
-  SC1 [ label=<slice[0:500, :]> ];
-  SC2 [ label=<slice[500:, :]>, ];
-  
-  SC1 -> C;
-  SC2 -> C;
-  
-  C1, C2 [shape=box3d, fillcolor="#d0d0ff", style=filled];
-  C1 [
-     label=<
-       <table border="0">
-         <tr><td>Tensor: C.1</td></tr>
-         <tr><td>[500, 10]</td></tr>
-         </table>
-     >,
-  ];
-  C2 [
-     label=<
-       <table border="0">
-         <tr><td>Tensor: C.2</td></tr>
-         <tr><td>[500, 10]</td></tr>
-         </table>
-     >,
-  ];
    
-  SinkC1, SinkC2 [
+  SinkC [
+     label=<
+       <table border="0">
+         <tr><td>Sink: C</td></tr>
+         <tr><td><i>to database</i></td></tr>
+         </table>
+     >,
      shape=cds,
      fillcolor="#E5E8E8",
      style=filled,
   ];
   
-  C1 -> SC1;
-  C2 -> SC2;
+  SinkC -> C;
   
-  SinkC1 [label="Sink: C1"];
-  SinkC2 [label="Sink: C2"];
+  SinkC -> SigC;
+  { rank=same; SigC; SinkC; }
   
-  SinkC1 -> C1;
-  SinkC2 -> C2;
+  Sp1 [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>Sequence</td></tr>
+         <tr><td>Point</td></tr>
+         </table>
+    >,
+    margin=0,
+    shape=octagon,
+    style=filled,
+    fillcolor="#B4F8C8",
+  ];
+  Sp1 -> SinkC;
 }
 ```
+
+Let *TEG* be the "Tapestry Expression Graph", made up of:
+* [Tensor Nodes](#Tensor-Nodes)
+* [Selector Nodes](#Selector-Nodes)
+* [Block Operator Nodes](#Block-Operator-Nodes)
+  * [Source Nodes](#Source-Nodes)
+  * [Sink Nodes](#Sink-Nodes)
+* [Signature Nodes](#Signature-Nodes)
+* [Sequence Point Nodes](#Sequence-Point-Nodes)
 
 ### Tensor Nodes
 
@@ -545,7 +550,7 @@ digraph G {
 }
 ```
 
-A *Tensor Node* represents a logical tensor.
+A *Tensor Node* represents the shape, datatype, and data of a logical tensor.
 
 A *Tensor Node* has exactly one dependency, which may be either:
  * a *Source Node*,
@@ -569,16 +574,14 @@ digraph G {
   A1 [
      label=<
        <table border="0">
-         <tr><td>Tensor: A.1</td></tr>
-         <tr><td>[500, 10]</td></tr>
+         <tr><td>Tensor: A</td></tr>
          </table>
      >,
   ];
   A2 [
      label=<
        <table border="0">
-         <tr><td>Tensor: A.2</td></tr>
-         <tr><td>[500, 10]</td></tr>
+         <tr><td>Tensor: B</td></tr>
          </table>
      >,
   ];
@@ -602,8 +605,7 @@ digraph G {
   A [
      label=<
        <table border="0">
-         <tr><td>Tensor: A</td></tr>
-         <tr><td>[1000, 10]</td></tr>
+         <tr><td>Tensor: C</td></tr>
          </table>
      >,
   ];
@@ -623,7 +625,7 @@ A *Selector Node* has:
 > the analytic transparency of the operation; every cell in the output node is
 > a function of a known mapping over the input nodes.
 
-### Block Operator and Signature Nodes
+### Block Operator Nodes
 
 ```graphviz
 digraph G {
@@ -634,7 +636,6 @@ digraph G {
      label=<
        <table border="0">
          <tr><td>Tensor: A</td></tr>
-         <tr><td>[1000, 10]</td></tr>
          </table>
      >,
   ];
@@ -643,21 +644,12 @@ digraph G {
      label=<
        <table border="0">
          <tr><td>Tensor: B</td></tr>
-         <tr><td>[10]</td></tr>
          </table>
      >,
   ];
   
   Sig [
-      label=<
-       <table border="0" cellspacing="0" cellpadding="0">
-         <tr><td>Signature</td></tr>
-         <tr><td><i>index</i></td></tr>
-         <tr><td><i>{input: projection}</i></td></tr>
-         <tr><td><i>{output: projection}</i></td></tr>
-         <tr><td><i>marginal costs</i></td></tr>
-         </table>
-      >,
+      label=<Signature>,
       shape=component,
       margin=0.25,
       style=filled,
@@ -668,7 +660,9 @@ digraph G {
       label=<
        <table border="0" cellspacing="0" cellpadding="0">
          <tr><td><i>operator</i></td></tr>
+         <tr><td><i>index</i></td></tr>
          <tr><td><i>{param: value}</i></td></tr>
+         <tr><td><i>{cost: value}</i></td></tr>
          </table>
       >,
       shape=rarrow,
@@ -686,12 +680,37 @@ digraph G {
      label=<
        <table border="0">
          <tr><td>Tensor: C</td></tr>
-         <tr><td>[1000, 10]</td></tr>
          </table>
      >
   ];
   C -> Op;
   
+  
+  Sp1, Sp2 [
+    margin=0,
+    shape=octagon,
+    style=filled,
+    fillcolor="#B4F8C8",
+  ];
+  Sp1 [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>Sequence</td></tr>
+         <tr><td>Point #1</td></tr>
+         </table>
+    >,
+  ];
+  Sp2 [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>Sequence</td></tr>
+         <tr><td>Point #2</td></tr>
+         </table>
+    >,
+  ];
+  
+  Op -> Sp1;
+  Sp2 -> Op;
 }
 ```
 
@@ -700,30 +719,18 @@ A *Block Operator Node* represents a parallel block computation over input tenso
 A *Block Operator Node* has:
 * a *Block Index*, which is a dense ZSpace range;
 * 0 or more *named* *Tensor Node* dependencies;
-* Exactly one *Signature* dependency;
+* At most one *Signature* dependency;
 * 0 or more *named* *Tensor Node* outputs;
-* some number of node parameters.
+* some number of node parameters;
+* 0 or more *Sequence Point* dependencies;
+* 0 or more *Sequence Point* consumers;
+* an optional multi-type *Costs* dictionary.
 
-A *Signature Node* represents the block sharding signature of *Block Operator Nodes*.
+*Sequence Point* nodes consume and produce no data, but constitute a strict
+*happens before* mechanic and are the root nodes for visibility and pruning
+analysis.
 
-A *Signature Node* has:
-* no dependencies; 
-* a map from *named* inputs to *Index Projections* for those inputs;
-* a map from *named* outputs to *Index Projections* for those inputs;
-* a *Marginal Cost* map.
-
-> 📝 Note: TBD;
-> There is an unresolved implementation detail with regard to Source, Sink, and
-> Block Operator Nodes. Source and Sink nodes could be modeled as *Block Operator
-> Nodes*; but doing so lifts additional constraints about their handling into
-> the formal semantics.
-> 
-> A *pinned* Block Operator Node could be introduced to describe block operations
-> which are constrained to be evaluated and not pruned; and *Sink* could be modeled
-> as such a *pinned operator*. Doing so provides a mechanism to model value exporting
-> side effect IO behavior directly; which would de-specialize *Sink* nodes.
-
-### Source and Sink Nodes
+#### Source and Sink Nodes
 
 ```graphviz
 digraph G {
@@ -751,6 +758,11 @@ digraph G {
 }
 ```
 
+*Source* and *Sink Nodes* are *Block Operation Nodes* which bridge data into or out of
+an expression.
+
+##### Source Nodes
+
 A *Source Node* represents a process which generates a *Tensor Node*.
 A *Source Node* may represent real work (load the tensor from a database);
 or may exist to constrain optimization solutions (this tensor is in memory
@@ -758,16 +770,135 @@ on this given machine).
 
 A *Source Node* has no dependencies; and produces a single *Tensor Node*.
 
+##### Sink Nodes
+
 A *Sink Node* represents a process which stores or makes the contents
 of a *Tensor Node* accessible outside the expression environment after
 evaluation is complete. It may also represent real work (store this tensor
 to a file system or database); or it may represent a constraint that
 the tensor is in the cache on a given target machine.
 
-A *Sink Node* has exactly one *Tensor Node* dependency; and can not
-be the dependency of another node.
+A *Sink Node* has exactly one *Tensor Node* dependency; and can only
+be the dependency of a *Sequence Point*.
 
-## Expression Evaluation Theory Derivation
+
+### Signature Nodes
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  A, C [shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+  A [
+     label=<
+       <table border="0">
+         <tr><td>Tensor</td></tr>
+         </table>
+     >,
+  ];
+  
+  Sig [
+      label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>Signature</td></tr>
+         <tr><td><i>index</i></td></tr>
+         <tr><td><i>{input: projection}</i></td></tr>
+         <tr><td><i>{output: projection}</i></td></tr>
+         <tr><td><i>marginal cost map</i></td></tr>
+         </table>
+      >,
+      shape=component,
+      margin=0.25,
+      style=filled,
+      fillcolor="#ffffd0";
+  ];
+  
+  Op [
+      label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td><i>operator</i></td></tr>
+         </table>
+      >,
+      shape=rarrow,
+      margin=0.25,
+      style=filled,
+      fillcolor="#E5E8E8",
+  ];
+  Op -> A;
+  
+  Op -> Sig [constraint=false];
+  { rank=same; Sig; Op; }
+  
+  C [
+     label=<
+       <table border="0">
+         <tr><td>Tensor</td></tr>
+         </table>
+     >
+  ];
+  C -> Op;
+  
+}
+```
+
+A *Signature Node* represents the block sharding and cost map signature of *Block Operator Nodes*.
+
+A *Block Operator Node* without a signature cannot be re-sharded; and costs cannot be
+updated on new shards; stripping the associated *Signature Node* fixes a *Block Operation*.
+
+A *Signature Node* has:
+* no dependencies; 
+* a map from *named* inputs to *Index Projections* for those inputs;
+* a map from *named* outputs to *Index Projections* for those inputs;
+* a *Marginal Cost Map*.
+
+### Sequence Point Nodes
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  Op1, Op2, Op3 [
+      label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td><i>operator</i></td></tr>
+         </table>
+      >,
+      shape=rarrow,
+      margin=0.25,
+      style=filled,
+      fillcolor="#E5E8E8",
+  ];
+  
+  Sp1 [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>Sequence</td></tr>
+         <tr><td>Point</td></tr>
+         </table>
+    >,
+    margin=0,
+    shape=octagon,
+    style=filled,
+    fillcolor="#B4F8C8",
+  ];
+  
+  Sp1 -> Op1;
+  Sp1 -> Op2;
+  Op3 -> Sp1;
+}
+```
+
+*Sequence Point Nodes* consume and produce no data, but constitute a strict
+*happens before* mechanic and are the root nodes for visibility and pruning
+analysis.
+
+A *Sequence Point Node* has:
+* 0 or more *Block Operator Node* dependencies;
+* 0 or more *Block Operator Node* consumers.
+
+
+## Evaluation Theory Derivation
 
 The goal of this section is to incrementally refine informal operational semantics
 over tensor expressions towards formal semantics. We're motivated by math we'd like to
