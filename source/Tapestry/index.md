@@ -1077,6 +1077,15 @@ A *Signature Node* has:
 * a map from *named* outputs to *Index Projections* for those inputs;
 * a *Marginal Cost Map*.
 
+#### Signature Correspondence
+
+The *input* and *output* *Index Projection Functions* of a *Signature Node* describe the
+mapping from a *Block Operator Node* to the extent of its input and output tensors.
+
+When attached to a *Block Operation Node*, the tensor ranges projected by the Block Operator's
+*index* through the *Signature* must exactly
+match the tensor sizes of the corresponding input and output tensors.
+
 ### Sequence Point Nodes
 
 ```graphviz
