@@ -361,20 +361,22 @@ which includes a great deal of modern engineering and physical sciences applicat
 
 This section defines the formal semantics of the "Tapestry Expression Graph", or "TEG".
 
-*TEG* graphs are acyclic directed graphs, defining the values of chained tensor expressions; they 
+*TEG* graphs are acyclic directed graphs, defining the values of chained tensor expressions; they
 are made up of a selection of node types:
+
 * [Tensor Nodes](#Tensor-Nodes) - which define logical tensors.
 * [Selector Nodes](#Selector-Nodes) - which produce logical tensors by selecting values from
-   other logical tensors.
+  other logical tensors.
 * [Block Operator Nodes](#Block-Operator-Nodes) - which define parallel block operations;
   computationally producing new logical tensors from input tensor values.
-  * [Source Nodes](#Source-Nodes) - which define data-import operators.
-  * [Sink Nodes](#Sink-Nodes) - which define data-export operators.
+    * [Source Nodes](#Source-Nodes) - which define data-import operators.
+    * [Sink Nodes](#Sink-Nodes) - which define data-export operators.
 * [Signature Nodes](#Signature-Nodes) - which define the sharding semantics for block operators.
 * [Sequence Point Nodes](#Sequence-Point-Nodes) - which define ordering constraints for block
   operators.
 
 Consider the following example graph:
+
 ```graphviz
 digraph G {
   rankdir=RL;
@@ -538,18 +540,20 @@ digraph G {
 ```
 
 In this example we see:
- * *Source Nodes* generating tensors *A1*, *A2*, and *B* from local memory (on different
-   shard hosts);
- * A *concat* *Selector Node* fusing *A1* and *A2* to produce *A*;
- * An *Add* *Block Operator* consuming *A* and *B* to produce *C*;
- * A *Sink* operation writing *C* to a database;
- * *Signature Nodes* annotating *Add* and *Sink: C* with sharding information,
-   should we choose to shard them;
- * And a *Signature Point* marking *Sink: C* as an observed value to be computed.
- 
+
+* *Source Nodes* generating tensors *A1*, *A2*, and *B* from local memory (on different
+  shard hosts);
+* A *concat* *Selector Node* fusing *A1* and *A2* to produce *A*;
+* An *Add* *Block Operator* consuming *A* and *B* to produce *C*;
+* A *Sink* operation writing *C* to a database;
+* *Signature Nodes* annotating *Add* and *Sink: C* with sharding information,
+  should we choose to shard them;
+* And a *Signature Point* marking *Sink: C* as an observed value to be computed.
+
 Under appropriate *Signature* constraints, we may be able to rewrite
 the above expression into this one; processing the data in parallel
 without ever fusing it:
+
 ```graphviz
 digraph G {
   rankdir=RL;
@@ -754,6 +758,28 @@ Fixed expression languages without mutation or control flow can be included as t
 "basic block" machinery of larger languages which do model mutation and control
 flow.
 
+### ZSpace Objects
+
+$$\begin{eqnarray\*}
+ZSpace := \\{ \mathbb{Z}^n | n \in \mathbb{Z}^+ \\}
+\end{eqnarray\*}$$
+
+ZSpace is the shorthand name for $n$-dimensional discrete space; where
+all coordinates are integers and points are discretely seperated.
+
+ZSpace will be important for defining the "TEG" semantics.
+
+Defining some terms:
+* *ZPoint* - a point in discrete ZSpace;
+* *ZVector* - a vector in discrete ZSpace;
+* *ZRange* - a $[start, end)$ cartesian range in ZSpace.
+
+ZSpace is useful in working with tensor expression graphs; as 
+the shape of an $n$-dimensional tensor can be described as a vector in `ZN`, or a ZVector;
+and the coordinates of any cell in that tensor can be described by a point
+in `ZN`, or a ZPoint; and contiguous cartesian ranges of points can be
+described by a ZRange.
+
 ### Tensor Nodes
 
 ```graphviz
@@ -778,13 +804,15 @@ digraph G {
 A *Tensor Node* represents the shape, datatype, and data of a logical tensor.
 
 A *Tensor Node* has exactly one dependency, which may be either:
- * a *Source Node*,
- * a *Selector Node*,
- * a *Block Operator Node*.
+
+* a *Source Node*,
+* a *Selector Node*,
+* a *Block Operator Node*.
 
 Each tensor node:
+
 * has its origin at 0;
-* has a shape;
+* has a ZVector shape;
 * has a single data type;
 * is dense and contiguous.
 
@@ -822,7 +850,6 @@ digraph G {
     shape=parallelogram,
     style=filled,
     fillcolor="#a0d0d0",
-    color=black,
   ];
   SA -> A1;
   SA -> A2;
@@ -841,6 +868,7 @@ digraph G {
 A *Selector Node* represents a view transform / data selection over input tensors.
 
 A *Selector Node* has:
+
 * 0 or more *named* *Tensor Node* dependencies;
 * Exactly one *named* *Tensor Node* output;
 * some number of node parameters.
@@ -942,8 +970,9 @@ digraph G {
 A *Block Operator Node* represents a parallel block computation over input tensors.
 
 A *Block Operator Node* has:
+
 * a *Block Operator Id*, which is the id of the externally defined operator.
-* an *Index Range*, which is a dense ZSpace range describing the sharding space;
+* a ZRange *Index Range*, describing the sharding space;
 * 0 or more *named* *Tensor Node* dependencies;
 * At most one *Signature* dependency;
 * 0 or more *named* *Tensor Node* outputs;
@@ -1005,7 +1034,6 @@ the tensor is in the cache on a given target machine.
 A *Sink Node* has exactly one *Tensor Node* dependency; and can only
 be the dependency of a *Sequence Point*.
 
-
 ### Signature Nodes
 
 ```graphviz
@@ -1025,7 +1053,7 @@ digraph G {
       label=<
        <table border="0" cellspacing="0" cellpadding="0">
          <tr><td>Signature</td></tr>
-         <tr><td><i>index</i></td></tr>
+         <tr><td><i>dimension map</i></td></tr>
          <tr><td><i>{input: projection}</i></td></tr>
          <tr><td><i>{output: projection}</i></td></tr>
          <tr><td><i>marginal cost map</i></td></tr>
@@ -1071,7 +1099,8 @@ A *Block Operator Node* without a signature cannot be re-sharded; and costs cann
 updated on new shards; stripping the associated *Signature Node* fixes a *Block Operator*.
 
 A *Signature Node* has:
-* no dependencies; 
+* no dependencies;
+* a *named dimension map* naming the dimensions of the *index space*.
 * a map from *named* inputs to *Index Projections* for those inputs;
 * a map from *named* outputs to *Index Projections* for those inputs;
 * a *Marginal Cost Map*.
@@ -1127,9 +1156,9 @@ digraph G {
 analysis.
 
 A *Sequence Point Node* has:
+
 * 0 or more *Block Operator Node* dependencies;
 * 0 or more *Block Operator Node* consumers.
-
 
 ## Evaluation Theory Derivation
 
@@ -1339,7 +1368,6 @@ digraph G {
     shape=parallelogram,
     style=filled,
     fillcolor="#a0d0d0",
-    color=black,
   ];
   
   S -> X1;
