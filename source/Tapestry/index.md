@@ -884,8 +884,8 @@ digraph G {
   Op [
       label=<
        <table border="0" cellspacing="0" cellpadding="0">
-         <tr><td><i>block operator</i></td></tr>
-         <tr><td><i>index</i></td></tr>
+         <tr><td><i>Block Operator Id</i></td></tr>
+         <tr><td><i>index range</i></td></tr>
          <tr><td><i>{param: value}</i></td></tr>
          <tr><td><i>{cost: value}</i></td></tr>
          </table>
@@ -942,7 +942,8 @@ digraph G {
 A *Block Operator Node* represents a parallel block computation over input tensors.
 
 A *Block Operator Node* has:
-* a *Block Index*, which is a dense ZSpace range;
+* a *Block Operator Id*, which is the id of the externally defined operator.
+* an *Index Range*, which is a dense ZSpace range;
 * 0 or more *named* *Tensor Node* dependencies;
 * At most one *Signature* dependency;
 * 0 or more *named* *Tensor Node* outputs;
