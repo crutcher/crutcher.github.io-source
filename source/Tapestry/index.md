@@ -359,6 +359,22 @@ which includes a great deal of modern engineering and physical sciences applicat
 
 ## TEG: Tapestry Expression Graph
 
+This section defines the formal semantics of the "Tapestry Expression Graph", or "TEG".
+
+*TEG* graphs are acyclic directed graphs, defining the values of chained tensor expressions; they 
+are made up of a selection of node types:
+* [Tensor Nodes](#Tensor-Nodes) - which define logical tensors.
+* [Selector Nodes](#Selector-Nodes) - which produce logical tensors by selecting values from
+   other logical tensors.
+* [Block Operator Nodes](#Block-Operator-Nodes) - which define parallel block operations;
+  computationally producing new logical tensors from input tensor values.
+  * [Source Nodes](#Source-Nodes) - which define data-import operators.
+  * [Sink Nodes](#Sink-Nodes) - which define data-export operators.
+* [Signature Nodes](#Signature-Nodes) - which define the sharding semantics for block operators.
+* [Sequence Point Nodes](#Sequence-Point-Nodes) - which define ordering constraints for block
+  operators.
+
+Consider the following example graph:
 ```graphviz
 digraph G {
   rankdir=RL;
@@ -491,6 +507,7 @@ digraph G {
      label=<
        <table border="0">
          <tr><td>Sink: C</td></tr>
+         <tr><td>[0, 0] =&gt; [1000, 10]</td></tr>
          <tr><td><i>to database</i></td></tr>
          </table>
      >,
@@ -520,14 +537,222 @@ digraph G {
 }
 ```
 
-Let *TEG* be the "Tapestry Expression Graph", made up of:
-* [Tensor Nodes](#Tensor-Nodes)
-* [Selector Nodes](#Selector-Nodes)
-* [Block Operator Nodes](#Block-Operator-Nodes)
-  * [Source Nodes](#Source-Nodes)
-  * [Sink Nodes](#Sink-Nodes)
-* [Signature Nodes](#Signature-Nodes)
-* [Sequence Point Nodes](#Sequence-Point-Nodes)
+In this example we see:
+ * *Source Nodes* generating tensors *A1*, *A2*, and *B* from local memory (on different
+   shard hosts);
+ * A *concat* *Selector Node* fusing *A1* and *A2* to produce *A*;
+ * An *Add* *Block Operation* consuming *A* and *B* to produce *C*;
+ * A *Sink* operation writing *C* to a database;
+ * *Signature Nodes* annotating *Add* and *Sink: C* with sharding information,
+   should we choose to shard them;
+ * And a *Signature Point* marking *Sink: C* as an observed value to be computed.
+ 
+Under appropriate *Signature* constraints, we may be able to rewrite
+the above expression into this one; processing the data in parallel
+without ever fusing it:
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  SourceA1, SourceA2, SourceB [
+     shape=cds,
+     fillcolor="#E5E8E8",
+     style=filled,
+  ];
+  
+  SourceA1 [
+     label=<
+       <table border="0">
+         <tr><td>Source: A1</td></tr>
+         <tr><td><i>from memory</i></td></tr>
+         </table>
+     >,
+  ];
+  SourceA2 [
+     label=<
+       <table border="0">
+         <tr><td>Source: A2</td></tr>
+         <tr><td><i>from memory</i></td></tr>
+         </table>
+     >,
+  ];
+  SourceB [
+     label=<
+       <table border="0">
+         <tr><td>Source: B</td></tr>
+         <tr><td><i>from memory</i></td></tr>
+         </table>
+     >,
+  ];
+  
+  A1 -> SourceA1;
+  A2 -> SourceA2;
+  
+  B -> SourceB;
+  
+  A1, A2, B [shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+  A1 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: A.1</td></tr>
+         <tr><td>[500, 10]</td></tr>
+         </table>
+     >,
+  ];
+  A2 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: A.2</td></tr>
+         <tr><td>[500, 10]</td></tr>
+         </table>
+     >,
+  ];
+  
+  B [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: B</td></tr>
+         <tr><td>[10]</td></tr>
+         </table>
+     >,
+  ];
+  
+  SigAdd, SigC [
+      label=<Signature>,
+      shape=component,
+      margin=0.25,
+      style=filled,
+      fillcolor="#ffffd0";
+  ];
+  
+  Add1, Add2 [
+      shape=rarrow,
+      margin=0.25,
+      style=filled,
+      fillcolor="#E5E8E8",
+  ];
+  Add1 [
+      label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>add</td></tr>
+         <tr><td>[0, 0] =&gt; [500, 10]</td></tr>
+         </table>
+      >,
+  ];
+  Add2 [
+      label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>add</td></tr>
+         <tr><td>[500, 0] =&gt; [1000, 10]</td></tr>
+         </table>
+      >,
+  ];
+  Add1 -> B;
+  Add1 -> A1;
+  
+  Add2 -> B;
+  Add2 -> A2;
+  
+  Add1 -> SigAdd;
+  Add2 -> SigAdd;
+  { rank=same; SigAdd; Add1; Add2; }
+  
+  C1, C2 [shape=box3d, fillcolor="#d0d0ff", style=filled];
+  C1 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: C1</td></tr>
+         <tr><td>[500, 10]</td></tr>
+         </table>
+     >,
+  ];
+  C2 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: C2</td></tr>
+         <tr><td>[500, 10]</td></tr>
+         </table>
+     >,
+  ];
+  C1 -> Add1;
+  C2 -> Add2;
+   
+  SinkC1, SinkC2 [
+     shape=cds,
+     fillcolor="#E5E8E8",
+     style=filled,
+  ];
+  SinkC1 [
+     label=<
+       <table border="0">
+         <tr><td>Sink: C1</td></tr>
+         <tr><td>[0, 0] =&gt; [500, 10]</td></tr>
+         <tr><td><i>to database</i></td></tr>
+         </table>
+     >,
+  ];
+  SinkC2 [
+     label=<
+       <table border="0">
+         <tr><td>Sink: C2</td></tr>
+         <tr><td>[500, 0] =&gt; [1000, 10]</td></tr>
+         <tr><td><i>to database</i></td></tr>
+         </table>
+     >,
+  ];
+  
+  SinkC1 -> C1;
+  SinkC2 -> C2;
+  
+  SinkC1 -> SigC;
+  SinkC2 -> SigC;
+  { rank=same; SigC; SinkC1; SinkC2; }
+  
+  Sp1 [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>Sequence</td></tr>
+         <tr><td>Point</td></tr>
+         </table>
+    >,
+    margin=0,
+    shape=octagon,
+    style=filled,
+    fillcolor="#B4F8C8",
+  ];
+  Sp1 -> SinkC1;
+  Sp1 -> SinkC2;
+}
+```
+
+### No Serialization Standard
+
+*At this point*, "TEG" describes graphs, and not a language; there is no standard
+serialization for TEG graphs.
+
+Implementing serialization formats is complex, as we want to model errors for
+mal-formed graphs which speed development; and as a result the languages are slow
+to modify.
+
+Everything in a TEG graph *should* remain serializable, for the development
+of standard tooling; but at this point this is an explicit non-goal, to
+permit rapid iteration on the graph semantics and implementation.
+
+### Fixed Graphs
+
+*TEG* graphs are non-dynamic, and do not model control flow.
+
+All values are considered to be idempotent; a given block operator should, given
+the same input, produce the same output every time it is executed; this is an important
+property for shard recovery.
+
+As the graph is value-oriented and acyclic, all values are single-static assignment;
+*TEG* graphs do not model mutation.
+
+Fixed expression languages without mutation or control flow can be included as the
+"basic block" machinery of larger languages which do model mutation and control
+flow.
 
 ### Tensor Nodes
 
