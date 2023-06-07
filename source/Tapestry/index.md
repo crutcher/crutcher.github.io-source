@@ -970,8 +970,6 @@ digraph G {
      label=<
        <table border="0">
          <tr><td>Tensor</td></tr>
-         <tr><td>[s0, s1, ...]</td></tr>
-         <tr><td>float16</td></tr>
          </table>
      >,
      shape=box3d,
