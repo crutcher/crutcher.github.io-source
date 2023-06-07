@@ -943,7 +943,7 @@ A *Block Operator Node* represents a parallel block computation over input tenso
 
 A *Block Operator Node* has:
 * a *Block Operator Id*, which is the id of the externally defined operator.
-* an *Index Range*, which is a dense ZSpace range;
+* an *Index Range*, which is a dense ZSpace range describing the sharding space;
 * 0 or more *named* *Tensor Node* dependencies;
 * At most one *Signature* dependency;
 * 0 or more *named* *Tensor Node* outputs;
