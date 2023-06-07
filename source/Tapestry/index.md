@@ -541,7 +541,7 @@ In this example we see:
  * *Source Nodes* generating tensors *A1*, *A2*, and *B* from local memory (on different
    shard hosts);
  * A *concat* *Selector Node* fusing *A1* and *A2* to produce *A*;
- * An *Add* *Block Operation* consuming *A* and *B* to produce *C*;
+ * An *Add* *Block Operator* consuming *A* and *B* to produce *C*;
  * A *Sink* operation writing *C* to a database;
  * *Signature Nodes* annotating *Add* and *Sink: C* with sharding information,
    should we choose to shard them;
@@ -884,7 +884,7 @@ digraph G {
   Op [
       label=<
        <table border="0" cellspacing="0" cellpadding="0">
-         <tr><td><i>operator</i></td></tr>
+         <tr><td><i>block operator</i></td></tr>
          <tr><td><i>index</i></td></tr>
          <tr><td><i>{param: value}</i></td></tr>
          <tr><td><i>{cost: value}</i></td></tr>
@@ -983,7 +983,7 @@ digraph G {
 }
 ```
 
-*Source* and *Sink Nodes* are *Block Operation Nodes* which bridge data into or out of
+*Source* and *Sink Nodes* are *Block Operator Nodes* which bridge data into or out of
 an expression.
 
 ##### Source Nodes
@@ -1069,7 +1069,7 @@ digraph G {
 A *Signature Node* represents the block sharding and cost map signature of *Block Operator Nodes*.
 
 A *Block Operator Node* without a signature cannot be re-sharded; and costs cannot be
-updated on new shards; stripping the associated *Signature Node* fixes a *Block Operation*.
+updated on new shards; stripping the associated *Signature Node* fixes a *Block Operator*.
 
 A *Signature Node* has:
 * no dependencies; 
@@ -4599,7 +4599,7 @@ digraph G {
 $SumDim$, as a block operation, cannot be sharded along the $reduce$ dimension.
 
 Additional information about $SumDim$, and about rewrites to $SumDim$
-which are semantics-preserving; beyond what can be expressed about *Block Operations*,
+which are semantics-preserving; beyond what can be expressed about *Block Operators*,
 would permit us to break it apart.
 
 In modeling tensor expression graphs, we're interested in recurrent *classes* of operations;
