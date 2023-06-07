@@ -741,7 +741,7 @@ permit rapid iteration on the graph semantics and implementation.
 
 ### Fixed Graphs
 
-*TEG* graphs are non-dynamic, and do not model control flow.
+*TEG* graphs are non-dynamic directed acyclic graphs, and do not model control flow.
 
 All values are considered to be idempotent; a given block operator should, given
 the same input, produce the same output every time it is executed; this is an important
