@@ -357,6 +357,54 @@ An effective tapestry environment sufficient to host finite element simulations
 would permit accelerated research into anything built upon finite element simulations;
 which includes a great deal of modern engineering and physical sciences applications.
 
+## Current Restrictions
+
+This section details some things which will be excluded from Tapestry at this time.
+These are generally components that a more advanced system based upon this work
+should have, and their exclusion is targeted towards restricting the semantics
+and design work to cover the core requirements. It is better to have a deep
+and correct answer to these problems later, than a partial and buggy answer
+distorting and taxing designs at this point.
+
+### No Serialization Standard
+
+At this point, standardized serialization formats are a deferred goal;
+so the whitepaper describes graphs and other data structure artifacts,
+but not serialized representations of these artifacts.
+
+Standardized serialization is a core requirement for interoperable tooling,
+but it is also a complex subject, particularly when working with directed
+graphs.
+
+Everything in a TEG graph *should* remain serializable, for the development
+of standard tooling; but at this point this is an explicit non-goal, to
+permit rapid iteration on the graph semantics and implementation.
+
+### No Dynamic Graphs
+
+*TEG* graphs are non-dynamic directed acyclic graphs, and do not model control flow.
+
+All values are considered to be idempotent; a given block operator should, given
+the same input, produce the same output every time it is executed; this is an important
+property for shard recovery.
+
+As the graph is value-oriented and acyclic, all values are single-static assignment;
+*TEG* graphs do not model mutation.
+
+Fixed expression languages without mutation or control flow can be included as the
+"basic block" machinery of larger languages which do model mutation and control
+flow.
+
+Dynamic graphs, and graphs which update values, can be modeled on top of
+fixed basic-block graphs by the addition of aliasing rules and conditional
+flow operators; and optimization can be performed on such models.
+
+But control flow and aliasing can also be performed by the environment
+submitting the execution of expression graphs; iteratively injecting
+expressions for execution, waiting for their completion, making decisions,
+and then re-injecting further expressions. This is the control flow model
+used by Apache Spark.
+
 ## TEG: Tapestry Expression Graph
 
 This section defines the formal semantics of the "Tapestry Expression Graph", or "TEG".
@@ -527,7 +575,7 @@ digraph G {
     label=<
        <table border="0" cellspacing="0" cellpadding="0">
          <tr><td>Sequence</td></tr>
-         <tr><td>Point</td></tr>
+         <tr><td>Point #1</td></tr>
          </table>
     >,
     margin=0,
@@ -548,7 +596,7 @@ In this example we see:
 * A *Sink* operation writing *C* to a database;
 * *Signature Nodes* annotating *Add* and *Sink: C* with sharding information,
   should we choose to shard them;
-* And a *Signature Point* marking *Sink: C* as an observed value to be computed.
+* And a *Sequence Point* marking *Sink: C* as an observed value to be computed.
 
 Under appropriate *Signature* constraints, we may be able to rewrite
 the above expression into this one; processing the data in parallel
@@ -730,55 +778,31 @@ digraph G {
 }
 ```
 
-### No Serialization Standard
+### ZSpace: Discrete Coordinate Space Objects
 
-*At this point*, "TEG" describes graphs, and not a language; there is no standard
-serialization for TEG graphs.
+Tensor coordinates and coordinate ranges are discrete, integer-valued objects.
 
-Implementing serialization formats is complex, as we want to model errors for
-mal-formed graphs which speed development; and as a result the languages are slow
-to modify.
-
-Everything in a TEG graph *should* remain serializable, for the development
-of standard tooling; but at this point this is an explicit non-goal, to
-permit rapid iteration on the graph semantics and implementation.
-
-### Fixed Graphs
-
-*TEG* graphs are non-dynamic directed acyclic graphs, and do not model control flow.
-
-All values are considered to be idempotent; a given block operator should, given
-the same input, produce the same output every time it is executed; this is an important
-property for shard recovery.
-
-As the graph is value-oriented and acyclic, all values are single-static assignment;
-*TEG* graphs do not model mutation.
-
-Fixed expression languages without mutation or control flow can be included as the
-"basic block" machinery of larger languages which do model mutation and control
-flow.
-
-### ZSpace Objects
+The math symbol $\mathbb{Z}$ is used for the set of integers,
+so "ZSpace" is a shorthand for an $n$-dimensional discrete space.
 
 $$\begin{eqnarray\*}
 ZSpace := \\{ \mathbb{Z}^n | n \in \mathbb{Z}^+ \\}
 \end{eqnarray\*}$$
 
-ZSpace is the shorthand name for $n$-dimensional discrete space; where
-all coordinates are integers and points are discretely seperated.
+Here \$mathbb{Z}^3$ represents 3-dimensional discrete space; and note that
+$\mathbb{Z}^+$ means "non-negative integers"; here we'll include
+zero ($0$) in $\mathbb{Z}^+$.
 
-ZSpace will be important for defining the "TEG" semantics.
+ZSpace is useful in working with tensor expression graphs; as
+the shape of an $n$-dimensional tensor can be described as a vector in `ZN`, or a ZVector;
+and the coordinates of any cell in that tensor can be described by a point
+in `ZN`, or a ZPoint; and contiguous cartesian ranges of points can be
+described by a ZRange.
 
 Defining some terms:
 * *ZPoint* - a point in discrete ZSpace;
 * *ZVector* - a vector in discrete ZSpace;
 * *ZRange* - a $[start, end)$ cartesian range in ZSpace.
-
-ZSpace is useful in working with tensor expression graphs; as 
-the shape of an $n$-dimensional tensor can be described as a vector in `ZN`, or a ZVector;
-and the coordinates of any cell in that tensor can be described by a point
-in `ZN`, or a ZPoint; and contiguous cartesian ranges of points can be
-described by a ZRange.
 
 ### Tensor Nodes
 
