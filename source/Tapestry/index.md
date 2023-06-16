@@ -1739,42 +1739,108 @@ either:
 * Define a *Tensor View* as an index transformation of an existing *Tensor View*; or
 * Define a *Tensor View* as some composition of one or more existing *Tensor Views*
 
-A rough list of index transformations we've previously discussed would include:
+#### View Selectors
 
-* `permute/transpose` - reordering the dimension indexes of a tensor is free.
-* `reverse/flip` - flipping a tensor dimension is free.
-* `select` - selecting a subset of a tensor is free.
-* `stride` - skipping every `k` items along a dimension is free.
-* `squeeze/unsqueeze` - adding/removing a size-1 dimension is free.
-* `broadcast` - treat a size 1 dimension as though it were size `n`, without copying data.
+A rough list of view index transformations we've previously discussed would include:
+
+##### permute / transpose selectors
+
+Permuting, transposing, or reordering the dimension indexes of a tensor requires
+only reordering the size and strides to match the new order.
+
+##### reverse / flip selectors
+
+Reversing or flipping the indexes of a dimension requires only inverting the sign
+of the stride for that dimension, and adjusting the start offset of the view.
+
+##### select / stride selectors
+
+Selecting an index subset of a dimension is a more complex stride rewrite;
+but is still a one-step stride transformation.
+
+Consider a selection like:
+```python
+t[0:3, 5, 0::2]
+```
+* taking the first 3 elements of dim-0,
+* the 5th element of dim-1,
+* and the even elements of dim-2.
+
+This can be accomplished by a series of incremental changes to the shapes and strides;
+resulting in a new fixed one-step stride view which accomplishes this selection.
+
+##### squeeze / unsqueeze / broadcast selectors
+
+Manipulating dimensions which don't affect the underling data index, by adding or removing
+dimensions of size 1 (whose index will always be 0); or by adding "broadcast" dimensions,
+which appear to have a size, but ignore the coordinate and always map to the same location,
+can be done by simple changes to the shape and strides.
+
+#### Composition Selectors
 
 We already know we'll need `concat`, but there are a few other common composition selectors
 worth mentioning at this point:
 
-* `concat` - assemble a tensor view by concatenating multiple tensors along a dimension.
-* `interleave` - assemble a tensor view by interleaving multiple tensors along a dimension.
-* `repeat`<sup>\*</sup> - assemble a tensor view by repeating a tensor along a dimension.
-* `pad`<sup>\*</sup> - supply data outside the selection region with a default value, or a
-  reflection.
-* `where`, `max`, `min` - conditionally construct a view by switching on the data from multiple
-  views.
+##### concat selectors
 
-> 📝 Note: <sup>\*</sup>`pad` and `repeat` are *Selection*s we'd also prefer to implement on the
-> local consumer;
-> as the data is either a default value, or a reflection or duplication of data we already have;
-> and these are also good targets for Selection optimization and re-write.
+Assembling a tensor view by concatenating multiple tensors along a composition dimension
+can be accomplished by a list of tensors to concatenate, and their sizes, and the target
+dimension; input coordinates are mapped to where they fall in the lengths of the components,
+and lookups are routed to the appropriate component.
 
-> 📝 Note: `broadcast` and `repeat` are similar, but not the same. A combination of `unsqueeze`
-> and `broadcast` permits us to construct a new dimension, and then duplicate data along
-> that dimension; but does not permit us to repeat the data in a dimension.
->
-> It is possible to model an operation like `repeat` by adding modulo arithmetic to
-> the view indexing operations; or to model it as an application to `concat`.
->
-> There are other view transformations which would benefit from the addition of modulo
-> arithmetic to view transformations, at the cost of increasing the complexity of
-> all operations which manipulate and rewrite transformations; so for now, we'll
-> model `repeat` as a shorthand for `concat`.
+##### interleave selectors
+
+Similar to *concat selectors*, in that we've got a list of source tensors, and a composition
+dimension; but rather than range calculations, we perform modulo calculations to determine
+the target source tensor and the adjusted coordinates.
+
+##### repeat selectors
+
+Similar to *concat selectors*; in that we've got a source tensor and we perform range
+offset calculations; but they all map back to the same source tensor after adjustment.
+
+> 📝 Note: `broadcast` and `repeat` are similar in usage, but not the same. A combination of 
+> `unsqueeze` and `broadcast` permits us to construct a new dimension, and then duplicate data
+> along that dimension; but does not permit us to repeat the data in a dimension.
+
+##### pad selectors
+
+Pad selectors permit us to place a target tensor inside the range of a larger synthetic
+tensor, where the data outside the target source is some fixed value or index function
+into the padded tensor.
+
+It's common to pad with 0, or -1, or some sentinel value; and it's also common to pad
+with either a toroidal lookup (the source tensor "wraps around"), a reflection (the edge of the
+source tensor reflects outwards into the pad, like a mirror), or an averaging kernel.
+
+Averaging kernels may not be good targets for selectors, it may make more sense to require
+that form of padding to be represented as block operators. On the one hand, kernel expressions
+are simple to describe and implement, and so are quite portable and fast; and the total pad
+size is usually quite small compared to the rest of the tensor. On the other hand, they represent
+non-trivial calculation, and break some of the optimization theory that all of our selectors
+are "just reorderable copies".
+
+##### where / max / min selectors
+
+Selectors which conditionally choose values from source tensors based upon the values
+in source tensors require a list of source tensors, and a selection expression.
+
+These operators are simple to describe and necessary for many applications; but have
+runtime costs in terms of the total data copied (and the impact on block transfers)
+above simple copying.
+
+They are also extremely similar to the flow pattern of all cell-wise operations;
+there is very little difference between:
+```python
+t[idx] = max(a[idx], b[idx])
+```
+and
+```python
+t[idx] = a[idx] + b[idx]
+```
+
+There is some drive to model cell-wise operations independently of *Selector Operations*
+and *Block Operations*.
 
 #### Atomic Selections
 
