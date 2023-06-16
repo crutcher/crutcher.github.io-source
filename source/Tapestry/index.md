@@ -800,28 +800,57 @@ in `ZN`, or a ZPoint; and contiguous cartesian ranges of points can be
 described by a ZRange.
 
 Defining some terms:
+
 * *ZPoint* - a point in discrete ZSpace;
 * *ZVector* - a vector in discrete ZSpace;
 * *ZRange* - a $[start, end)$ cartesian range in ZSpace.
+
+### Dimension Name Maps
+
+A "Dimension Map" is a mapping from dimension index to dimension name;
+which can be represented as a simple list. In this example, the map:
+
+```python
+["batch", "height", "width", "channel"]
+```
+
+Translates as an index to name, and name to index association:
+
+* 0 - "batch",
+* 1 - "height",
+* 2 - "width",
+* 3 - "channel"
+
+Named dimensions are not required to schedule or rewrite expression graphs;
+and they do have a representation overhead to add to graphs and manage.
+Named dimension *do* add a tremendous amount of debug help to the development
+of graph expression generators, and the authoring and debugging of graph expression
+toolchains.
 
 ### Tensor Nodes
 
 ```graphviz
 digraph G {
   rankdir=RL;
-  
   T [
      label=<
        <table border="0">
          <tr><td>Tensor</td></tr>
-         <tr><td>[s0, s1, ...]</td></tr>
          <tr><td>float16</td></tr>
+         <tr><td>
+           <table cellspacing="0">
+             <tr><td>batch</td><td>100</td></tr>
+             <tr><td>height</td><td>256</td></tr>
+             <tr><td>width</td><td>256</td></tr>
+             <tr><td>channel</td><td>3</td></tr>
+           </table>
+           </td></tr>
          </table>
      >,
      shape=box3d,
      fillcolor="#d0d0ff",
      style=filled,
-  ];
+  ]; 
 }
 ```
 
@@ -833,10 +862,9 @@ A *Tensor Node* has exactly one dependency, which may be either:
 * a *Selector Node*,
 * a *Block Operator Node*.
 
-Each tensor node:
+Each *Tensor Node*:
 
-* has its origin at 0;
-* has a ZVector shape;
+* has a named dimension ZVector shape;
 * has a single data type;
 * is dense and contiguous.
 
@@ -890,6 +918,8 @@ digraph G {
 ```
 
 A *Selector Node* represents a view transform / data selection over input tensors.
+A "Selector Expression" doesn't change data, it provides a recipe for defining
+views of subsets of data which have already been defined under a new geometric view.
 
 A *Selector Node* has:
 
@@ -901,6 +931,8 @@ A *Selector Node* has:
 > The primary difference between *Selector Nodes* and *Block Operator Nodes* is
 > the analytic transparency of the operation; every cell in the output node is
 > a function of a known mapping over the input nodes.
+
+There is a family of Selector Nodes provided by TEG.
 
 ### Block Operator Nodes
 
@@ -1080,7 +1112,6 @@ digraph G {
          <tr><td><i>dimension map</i></td></tr>
          <tr><td><i>{input: projection}</i></td></tr>
          <tr><td><i>{output: projection}</i></td></tr>
-         <tr><td><i>marginal cost map</i></td></tr>
          </table>
       >,
       shape=component,
@@ -1123,11 +1154,11 @@ A *Block Operator Node* without a signature cannot be re-sharded; and costs cann
 updated on new shards; stripping the associated *Signature Node* fixes a *Block Operator*.
 
 A *Signature Node* has:
+
 * no dependencies;
-* a *named dimension map* naming the dimensions of the *index space*.
-* a map from *named* inputs to *Index Projections* for those inputs;
-* a map from *named* outputs to *Index Projections* for those inputs;
-* a *Marginal Cost Map*.
+* a *named dimension map* naming the dimensions of the *index space*;
+* a map from *named* inputs to *Index Projections* for those inputs; and
+* a map from *named* outputs to *Index Projections* for those inputs.
 
 #### Signature Correspondence
 
@@ -1243,57 +1274,43 @@ If, as an exercise, we drop any notion of compatibility with existing `numpy`-de
 apis; I'm interested in the question of how far we can get?
 
 When designing new evaluation languages, it is important to start with informal semantics that
-clearly and simply
-express the concepts we want to convey. We should also consider operational requirements, such as
-desired resource
-usage (CPU, memory, networks, etc.). From there, we can look for systems of formal semantics that
-use established
-building blocks in math and computer science. This approach helps us achieve our design goals as
-closely as possible.
+clearly and simply express the concepts we want to convey. We should also consider operational
+requirements, such as desired resource usage (CPU, memory, networks, etc.). From there, we can look
+for systems of formal semantics that use established building blocks in math and computer science.
+This approach helps us achieve our design goals as closely as possible.
 
 A functor embedding provides a formal way to describe how one evaluation system can be embedded in
-another in a
-transparent and correct way. This technique is commonly used to ensure that a program designed for
-one system can be
-used on another without issues. It is important to note that this process requires a deep
-understanding of both systems
-to ensure embedding is done correctly. A functor embedding can be a useful tool for developers,
-allowing them to reuse
-code and avoid rewriting entire programs from scratch. It can also help simplify the development
-process by reducing the
-time and effort required to create new programs. Overall, a functor embedding is a powerful
-technique for streamlining
-development and ensuring programs are efficient and effective.
+another in a transparent and correct way. This technique is commonly used to ensure that a program
+designed for one system can be used on another without issues. It is important to note that this
+process requires a deep understanding of both systems to ensure embedding is done correctly. A
+functor embedding can be a useful tool for developers, allowing them to reuse code and avoid
+rewriting entire programs from scratch. It can also help simplify the development process by
+reducing the time and effort required to create new programs. Overall, a functor embedding is a
+powerful technique for streamlining development and ensuring programs are efficient and effective.
 
 We can think of this process as searching for functor embeddings that have certain properties. When
-we find a functor
-embedding that aligns with an abstract execution environment while having semantics similar to the
-machine environments
-we want to target, translating from the functor embedding to the actual machines is often easy.
+we find a functor embedding that aligns with an abstract execution environment while having
+semantics similar to the machine environments we want to target, translating from the functor
+embedding to the actual machines is often easy.
 
 While searching for good embeddings, we may come across a system of formal semantics that is
-somewhat close to our
-original informal semantics. We can either force alignment or adjust our goals and take advantage of
-the formal semantic
-system that we’ve found. Personally, I prefer the latter approach.
+somewhat close to our original informal semantics. We can either force alignment or adjust our
+goals and take advantage of the formal semantic system that we’ve found. Personally, I prefer the
+latter approach.
 
 This design approach is particularly useful when creating new programming languages or evaluating
-the performance of
-existing ones. By starting with an understanding of informal semantics and operational requirements,
-we can ensure that
-our formal semantics are well-suited to the task at hand.
+the performance of existing ones. By starting with an understanding of informal semantics and
+operational requirements, we can ensure that our formal semantics are well-suited to the task
+at hand.
 
 It is important to keep in mind the target machines for our evaluation languages as we search for
-functor embeddings.
-Finding an embedding that aligns well with an abstract execution environment similar to our target
-machines can greatly
-simplify the translation process.
+functor embeddings. Finding an embedding that aligns well with an abstract execution environment
+similar to our target machines can greatly simplify the translation process.
 
 In cases where the formal semantics we discover are not a perfect match for our original informal
-semantics, we have two
-options: we can either force alignment or adjust our goals. In my experience, adjusting our goals to
-take advantage of
-the formal semantic system we've found is often the most efficient approach.
+semantics, we have two options: we can either force alignment or adjust our goals. In my experience,
+adjusting our goals to take advantage of the formal semantic system we've found is often the most
+efficient approach.
 
 ### Piecewise Tensors
 
