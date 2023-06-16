@@ -789,7 +789,7 @@ $$\begin{eqnarray\*}
 ZSpace := \\{ \mathbb{Z}^n | n \in \mathbb{Z}^+ \\}
 \end{eqnarray\*}$$
 
-Here \$mathbb{Z}^3$ represents 3-dimensional discrete space; and note that
+Here $\mathbb{Z}^3$ represents 3-dimensional discrete space; and note that
 $\mathbb{Z}^+$ means "non-negative integers"; here we'll include
 zero ($0$) in $\mathbb{Z}^+$.
 
