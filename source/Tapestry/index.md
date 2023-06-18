@@ -1732,6 +1732,53 @@ as properly modeling this can dramatically reduce the total data to transfer.
 
 ### Selector Expressions and Tensor Views
 
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  A1, A2, A [shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+  A1 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: A</td></tr>
+         </table>
+     >,
+  ];
+  A2 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: B</td></tr>
+         </table>
+     >,
+  ];
+  
+  SA [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td><i>selector</i></td></tr>
+         <tr><td><i>{param: value}</i></td></tr>
+         </table>
+    >,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+  ];
+  SA -> A1;
+  SA -> A2;
+  
+  A [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: C</td></tr>
+         </table>
+     >,
+  ];
+  A -> SA;
+}
+```
+
 As we've informally seen the need for composite view operations, and explored some tensor
 indexing view pragmatics, we can make a case that we'd like *Selector Expressions* which
 either:
@@ -1799,7 +1846,7 @@ the target source tensor and the adjusted coordinates.
 Similar to *concat selectors*; in that we've got a source tensor and we perform range
 offset calculations; but they all map back to the same source tensor after adjustment.
 
-> 📝 Note: `broadcast` and `repeat` are similar in usage, but not the same. A combination of 
+> 📝 Note: `broadcast` and `repeat` are similar in usage, but not the same. A combination of
 > `unsqueeze` and `broadcast` permits us to construct a new dimension, and then duplicate data
 > along that dimension; but does not permit us to repeat the data in a dimension.
 
@@ -1877,6 +1924,112 @@ It is important to note that `rand` is an entire sub-category of problems:
 
 It may prove simpler in practice to model random generators as block expressions
 than as *Selector* generators.
+
+### Cell Expressions
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  A1, A2, A [shape=box3d, fillcolor="#d0d0ff", style=filled];
+  
+  A1 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: A</td></tr>
+         </table>
+     >,
+  ];
+  A2 [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: B</td></tr>
+         </table>
+     >,
+  ];
+  
+  SA [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td><i>cell expression</i></td></tr>
+         <tr><td><i>{param: value}</i></td></tr>
+         </table>
+    >,
+    margin=0.25,
+    shape=component,
+    style=filled,
+    fillcolor="#dae0f2",
+  ];
+  SA -> A1;
+  SA -> A2;
+  
+  A [
+     label=<
+       <table border="0">
+         <tr><td>Tensor: C</td></tr>
+         </table>
+     >,
+  ];
+  A -> SA;
+}
+```
+
+
+A large quantity of operations we're interested in for tensor expressions are purely
+local cell-expressions; which is to say they operate only on the cell values of some
+number of input tensors where their indexes align. There's no complex indexing, there's
+no slices larger than a single cell, and the operation is purely functional (it has no
+side-effects).
+
+Revisiting `max`, `min`, and `where`; from the selector
+expressions discussion; there's very little difference between:
+```python
+t[idx] = max(a[idx], b[idx])
+```
+and
+```python
+t[idx] = a[idx] + b[idx]
+```
+
+If we permit the injection an arbitrary kernel, we could describe cell-expressions
+as an operator mapped over some number of inputs, to produce a single output:
+```python
+t[idx] = Op(a[idx], b[idx], ...)
+```
+
+Cell expressions permit us to model tensor and scalar addition, subtraction, multiplication, 
+division, powers, logs, abs, datatype changes, most AI activation functions, min, max, where,
+clip, and a host of other linear and exponential operators.
+
+Cell expressions don't permit modeling of anything which requires non-aligned cell data,
+or multiple cells of data; so they exclude modeling of dimension summation, matrix multiplication
+and dot products; and they don't permit neighborhood views, so they exclude kernel convolution
+functions.
+
+### Dimension Reduction Operations
+
+Dimension reduction operations (summation, averaging, dim-max, dim-min, etc) can take a
+tensor and apply some reduction *along* a dimension, producing a new tensor with one fewer
+dimensions, where the values are now a product of applying that reduction.
+
+Suppose we had a `[10, 4, 4]` tensor `A`, and we wished to end with a `[4, 4]` tensor `B` which
+held the sum of the values along the 0-dim; such that:
+```python
+B[a, b] = sum(A[0, a, b], A[1, a, b], ..., A[9, a, b])
+```
+
+The data sharing for this operation is not as simple as the cell-expression case; each result
+cell depends on the data in many source cells; but the dependency is extremely easy to express.
+
+In math, there are a number of families of reduction operations, and how we define them; and
+they affect questions about how those operations can be re-ordered. The most-reordable approach
+is to define reduction operations as a "monad", we can reorder them in any direction; and
+things like `sum` and `avg` fit nicely into that model.
+
+We can also imagine stranger reductions, such as "find me the value which is the biggest change
+relative to its previous value"; which are harder to express.
+
+TBD.
 
 ### Block Operator Expressions
 
@@ -2786,8 +2939,8 @@ To make this concrete, let's reconsider $Linear$ from above. If we add an $index
 to count all sub-problems of $Linear$:
 
 * What is the shape of $index$?
-    * How many dimensions does $index$ have?
-    * What are their sizes?
+  * How many dimensions does $index$ have?
+  * What are their sizes?
 * What relationship does the shape of $index$ have to the inputs ($X$, $W$, $b$) and outputs ($Y$)?
 * What *portions* of the inputs and outputs are associated with each point in $index$?
 
@@ -6385,7 +6538,7 @@ digraph G {
   ];
   
   X0 -> S0 -> X;
-  X0 -> S1 -> X;
+  X1 -> S1 -> X;
 
   F [
       shape="plain",
@@ -7283,6 +7436,339 @@ This approach can be made more powerful when high-level operators are designed b
 api designers in terms of the known family of fusion operators and rewrite
 operations; leading to potentially large wins in fusion optimization search
 results.
+
+### Index Tensors
+
+Consider a situation where we desire to compute bounding box information about
+a tensor. Suppose we've got a `[256, 256]` image tensor `A` containing classification information
+about if a pixel does, or does not, belong to a cat; but what we want is a bounding-box describing
+the outer bounds of the cat in the image?
+
+In a non-sharded situation, we'd iterate over the tensor cell by cell, and check the classification
+value against some threshold; recording the min and max x and y coordinates at which we appear
+to see a cat.
+
+In this way, we've introduced the cell-index as a *value* into our calculation; and in a potentially
+sharded world, we may have trouble tracking the relative index that a shard is acting at.
+
+Suppose, instead, that we introduced a new data type, an "Index Tensor"; whose values were indices.
+
+A `[4, 4]` data tensor may have a corresponding `[2, 4, 2]` index tensor:
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  Idx [
+      shape="plain",
+      label=<
+      <table cellpadding="8">
+          <tr>
+              <td>[0, 0]</td>
+              <td>[0, 1]</td>
+              <td>[0, 2]</td>
+              <td>[0, 3]</td>
+              </tr>
+          <tr>
+              <td>[1, 0]</td>
+              <td>[1, 1]</td>
+              <td>[1, 2]</td>
+              <td>[1, 3]</td>
+              </tr>
+          <tr>
+              <td>[2, 0]</td>
+              <td>[2, 1]</td>
+              <td>[2, 2]</td>
+              <td>[2, 3]</td>
+              </tr>
+          <tr>
+              <td>[3, 0]</td>
+              <td>[3, 1]</td>
+              <td>[3, 2]</td>
+              <td>[3, 3]</td>
+              </tr>
+          </table>
+      >,
+  ];
+  
+  A [
+      shape="plain",
+      label=<
+      <table cellpadding="8">
+          <tr>
+              <td>0.2</td>
+              <td>0.3</td>
+              <td>0.2</td>
+              <td>0.4</td>
+              </tr>
+          <tr>
+              <td>0.2</td>
+              <td>0.3</td>
+              <td>0.3</td>
+              <td>0.2</td>
+              </tr>
+          <tr>
+              <td>0.3</td>
+              <td border="3">0.6</td>
+              <td border="3">0.7</td>
+              <td>0.2</td>
+              </tr>
+          <tr>
+              <td>0.2</td>
+              <td border="3">0.9</td>
+              <td border="3">0.6</td>
+              <td>0.3</td>
+              </tr>
+          </table>
+      >,
+  ];
+  
+  Idx -> A [style=dotted];
+  {rank=same; Idx; A; }
+}
+```
+
+Suppose we have a "cat" in the box `[2, 1]`, `[3, 2]`; as evidenced by the classification values
+above 0.5.
+
+Suppose we wished to slice both tensors into shards:
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  
+  A [
+      shape="plain",
+      label=<
+      <table cellpadding="8">
+          <tr>
+              <td>0.2</td>
+              <td>0.3</td>
+              <td>0.2</td>
+              <td>0.4</td>
+              </tr>
+          <tr>
+              <td>0.2</td>
+              <td>0.3</td>
+              <td>0.3</td>
+              <td>0.2</td>
+              </tr>
+          <tr>
+              <td>0.3</td>
+              <td>0.45</td>
+              <td border="3">0.7</td>
+              <td>0.2</td>
+              </tr>
+          <tr>
+              <td>0.2</td>
+              <td border="3">0.9</td>
+              <td border="3">0.6</td>
+              <td>0.3</td>
+              </tr>
+          </table>
+      >,
+  ];
+  
+  Idx [
+      shape="plain",
+      label=<
+      <table cellpadding="8">
+          <tr>
+              <td>[0, 0]</td>
+              <td>[0, 1]</td>
+              <td>[0, 2]</td>
+              <td>[0, 3]</td>
+              </tr>
+          <tr>
+              <td>[1, 0]</td>
+              <td>[1, 1]</td>
+              <td>[1, 2]</td>
+              <td>[1, 3]</td>
+              </tr>
+          <tr>
+              <td>[2, 0]</td>
+              <td>[2, 1]</td>
+              <td border="3">[2, 2]</td>
+              <td>[2, 3]</td>
+              </tr>
+          <tr>
+              <td>[3, 0]</td>
+              <td border="3">[3, 1]</td>
+              <td border="3">[3, 2]</td>
+              <td>[3, 3]</td>
+              </tr>
+          </table>
+      >,
+  ];
+  
+  S_Idx_0 [
+    label=<slice[:2, ...]>,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  
+  S_Idx_1 [
+    label=<slice[2:, ...]>,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  
+  subgraph cluster_0 {
+  
+  Idx0 [
+      shape="plain",
+      label=<
+      <table cellpadding="8">
+          <tr>
+              <td>[0, 0]</td>
+              <td>[0, 1]</td>
+              </tr>
+          <tr>
+              <td>[1, 0]</td>
+              <td>[1, 1]</td>
+              </tr>
+          <tr>
+              <td>[2, 0]</td>
+              <td>[2, 1]</td>
+              </tr>
+          <tr>
+              <td>[3, 0]</td>
+              <td border="3">[3, 1]</td>
+              </tr>
+          </table>
+      >,
+  ];
+  
+  A0 [
+      shape="plain",
+      label=<
+      <table cellpadding="8">
+          <tr>
+              <td>0.2</td>
+              <td>0.3</td>
+              </tr>
+          <tr>
+              <td>0.2</td>
+              <td>0.3</td>
+              </tr>
+          <tr>
+              <td>0.3</td>
+              <td>0.45</td>
+              </tr>
+          <tr>
+              <td>0.2</td>
+              <td border="3">0.9</td>
+              </tr>
+          </table>
+      >,
+  ];
+  
+  Idx0 -> A0 [style=dotted];
+  {rank=same; Idx0; A0;}
+  
+  }
+  
+  subgraph cluster_1 {
+  
+  Idx1 [
+      shape="plain",
+      label=<
+      <table cellpadding="8">
+          <tr>
+              <td>[0, 2]</td>
+              <td>[0, 3]</td>
+              </tr>
+          <tr>
+              <td>[1, 2]</td>
+              <td>[1, 3]</td>
+              </tr>
+          <tr>
+              <td border="3">[2, 2]</td>
+              <td>[2, 3]</td>
+              </tr>
+          <tr>
+              <td border="3">[3, 2]</td>
+              <td>[3, 3]</td>
+              </tr>
+          </table>
+      >,
+  ];
+  
+  A1 [
+      shape="plain",
+      label=<
+      <table cellpadding="8">
+          <tr>
+              <td>0.2</td>
+              <td>0.4</td>
+              </tr>
+          <tr>
+              <td>0.3</td>
+              <td>0.2</td>
+              </tr>
+          <tr>
+              <td border="3">0.7</td>
+              <td>0.2</td>
+              </tr>
+          <tr>
+              <td border="3">0.6</td>
+              <td>0.3</td>
+              </tr>
+          </table>
+      >,
+  ];
+  
+  Idx1 -> A1 [style=dotted];
+  {rank=same; Idx1; A1;}
+  
+  }
+  
+  Idx0 -> S_Idx_0 -> Idx;
+  Idx1 -> S_Idx_1 -> Idx;
+  
+  S_A_0 [
+    label=<slice[:2, ...]>,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  
+  S_A_1 [
+    label=<slice[2:, ...]>,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  
+  A0 -> S_A_0 -> A;
+  A1 -> S_A_1 -> A;
+  
+  Idx -> A [style=dotted];
+  { rank=same; A; Idx; }
+}
+```
+
+The sliced index tensor is preserving our spatial information through the slice.
+
+If we wanted to be able to say:
+ * What is the min dim-0 value for which the classifier is at least 0.5?
+
+We could:
+1. Compare the classification tensor to 0.5, and get a boolean tensor.
+2. Select the dim-0 slice of the index tensor.
+3. Reduce along dim-0 using the index and boolean:
+   * default to -1,
+   * min-value of dim-0 index where boolean is true.
+4. Reduce along dim-1 to find the min-value of the min indexes.
 
 ## Cost Optimization
 
