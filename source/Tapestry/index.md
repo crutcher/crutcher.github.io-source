@@ -616,6 +616,7 @@ In this example we see:
 * *Source Nodes* generating tensors *A1*, *A2*, and *B* from local memory (on different
   shard hosts);
 * A *concat* *Selector Node* fusing *A1* and *A2* to produce *A*;
+* An (unused) *Index Node*, and *Index Selector* describing the indexes of *A*;
 * An *Add* *Block Operator* consuming *A* and *B* to produce *C*;
 * A *Sink* operation writing *C* to a database;
 * *Signature Nodes* annotating *Add* and *Sink: C* with sharding information,
