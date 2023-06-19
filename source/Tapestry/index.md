@@ -412,7 +412,8 @@ This section defines the formal semantics of the "Tapestry Expression Graph", or
 *TEG* graphs are acyclic directed graphs, defining the values of chained tensor expressions; they
 are made up of a selection of node types:
 
-* [Tensor Nodes](#Tensor-Nodes) - which define logical tensors.
+* [Tensor Nodes](#Tensor-Nodes) - which define logical data tensors.
+* [Index Nodes](#Index-Nodes) - which define logical index tensors.
 * [Selector Nodes](#Selector-Nodes) - which produce logical tensors by selecting values from
   other logical tensors.
 * [Block Operator Nodes](#Block-Operator-Nodes) - which define parallel block operations;
@@ -464,6 +465,29 @@ digraph G {
   A2 -> SourceA2;
   
   B -> SourceB;
+  
+  IdxA [
+     label=<
+       <table border="0">
+         <tr><td>Index: I.A</td></tr>
+         <tr><td>[1000, 10, 2]</td></tr>
+         </table>
+     >,
+     shape=box3d, fillcolor="#d0e0e0", style=filled,
+  ];
+  SIdxA [
+    label=<
+       <table border="0" cellspacing="0" cellpadding="0">
+         <tr><td>index</td></tr>
+         </table>
+    >,
+    margin=0,
+    shape=parallelogram,
+    style=filled,
+    fillcolor="#a0d0d0",
+    color=black,
+  ];
+  IdxA -> SIdxA -> A;
   
   A1, A2, A, B [shape=box3d, fillcolor="#d0d0ff", style=filled];
   
@@ -854,7 +878,7 @@ digraph G {
 }
 ```
 
-A *Tensor Node* represents the shape, datatype, and data of a logical tensor.
+A *Tensor Node* represents the shape, datatype, and data of a logical data tensor.
 
 A *Tensor Node* has exactly one dependency, which may be either:
 
@@ -867,6 +891,44 @@ Each *Tensor Node*:
 * has a named dimension ZVector shape;
 * has a single data type;
 * is dense and contiguous.
+
+### Index Nodes
+
+```graphviz
+digraph G {
+  rankdir=RL;
+  T [
+     label=<
+       <table border="0">
+         <tr><td>Index</td></tr>
+         <tr><td>
+           <table cellspacing="0">
+             <tr><td>batch</td><td>100</td></tr>
+             <tr><td>height</td><td>256</td></tr>
+             <tr><td>width</td><td>256</td></tr>
+             <tr><td>channel</td><td>3</td></tr>
+           </table>
+           </td></tr>
+         </table>
+     >,
+     shape=box3d,
+     fillcolor="#d0e0e0",
+     style=filled,
+  ]; 
+}
+```
+
+An *Index Node* represents the shape, and coordinates of an index tensor.
+Index tensors describe the coordinates of tensor spaces; and can be sliced
+and permuted as though those coordinates were stored as integer data.
+
+An *Index Node* has exactly one dependency, which must be:
+
+* an *Index Selector Node*.
+
+Each *Index Node*:
+
+* has a named dimension ZVector shape;
 
 ### Selector Nodes
 
