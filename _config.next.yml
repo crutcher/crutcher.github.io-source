@@ -24,6 +24,38 @@ menu:
   Tapestry: /Tapestry/ || fa fa-diagram-project
   Resume: /Resume/ || fa fa-solid fa-file
 
+font:
+  enable: true
+
+  # Global font settings used for all elements inside <body>.
+  global:
+    external: true
+    family: PT Sans
+    size: 1.125
+
+  # Font settings for site title (.site-title).
+  title:
+    external: true
+    family: Fira Sans
+    size:
+
+  # Font settings for headlines (<h1> to <h6>).
+  headings:
+    external: true
+    family: Roboto Slab
+    size:
+
+  # Font settings for posts (.post-body).
+  posts:
+    external: true
+    family: PT Sans
+
+  # Font settings for <code> and code blocks.
+  codes:
+    external: true
+    family: Fira Code
+
+
 social:
   GitHub: https://github.com/crutcher || fab fa-github
   Mastodon: https://sigmoid.social/@crutcher || fab fa-mastodon
