@@ -280,12 +280,12 @@ code for a variety of target architectures:
   <tr>
     <td>
       <div style="width: 100%; margin: auto">
-        <img alt="linear.relu" src="Tapestry-Project-Overview/linear.relu.ortho.jpg"/>
+        <img alt="linear.relu" src="/2024/03/08/Tapestry-Project-Overview/linear.relu.ortho.jpg"/>
       </div>
     </td>
     <td>
       <div style="width: 100%; margin: auto">
-        <img alt="linear.relu.4x" src="Tapestry-Project-Overview/linear.relu.4x.ortho.jpg"/>
+        <img alt="linear.relu.4x" src="/2024/03/08/Tapestry-Project-Overview/linear.relu.4x.ortho.jpg"/>
       </div>
     </td>
   </tr>
